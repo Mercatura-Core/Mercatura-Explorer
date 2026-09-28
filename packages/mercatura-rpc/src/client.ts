@@ -1,3 +1,5 @@
+import { type BlockStats, type RpcTransaction, type VerboseBlock } from "./chain-types.js";
+
 import {
   MercaturaRpcError,
   type BlockchainInfo,
@@ -73,5 +75,27 @@ export class MercaturaRpcClient {
 
   getBlockCount(): Promise<number> {
     return this.call<number>("getblockcount");
+  }
+
+  getBlockHash(height: number): Promise<string> {
+    return this.call<string>("getblockhash", [height]);
+  }
+
+  getBlock(hash: string): Promise<VerboseBlock> {
+    return this.call<VerboseBlock>("getblock", [hash, 2]);
+  }
+
+  getRawTransaction(txid: string, blockHash?: string): Promise<RpcTransaction> {
+    const params: unknown[] = [txid, true];
+
+    if (blockHash !== undefined) {
+      params.push(blockHash);
+    }
+
+    return this.call<RpcTransaction>("getrawtransaction", params);
+  }
+
+  getBlockStats(block: number | string): Promise<BlockStats> {
+    return this.call<BlockStats>("getblockstats", [block]);
   }
 }

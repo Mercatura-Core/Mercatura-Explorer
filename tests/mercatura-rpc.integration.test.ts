@@ -54,4 +54,42 @@ describe.runIf(integrationEnabled)("Mercatura RPC integration", () => {
 
     expect(mempool.loaded).toBe(true);
   });
+
+  it("reads live Mercatura block and transaction data", async () => {
+    const blockHash = await client.getBlockHash(103);
+
+    expect(blockHash).toBe("dafc4c0ab7696f18a8bda4d32f323430ec946bf3bdbe3c6ea138a9b7a1aa02de");
+
+    const block = await client.getBlock(blockHash);
+
+    expect(block.height).toBe(103);
+    expect(block.hash).toBe(blockHash);
+    expect(block.nTx).toBe(2);
+    expect(block.tx).toHaveLength(2);
+
+    const txid = "54968d4b8dc8441a9187d23ed887b6ab01b1ba2759d491359051b7fedde70138";
+
+    const transaction = await client.getRawTransaction(txid, blockHash);
+
+    expect(transaction.txid).toBe(txid);
+    expect(transaction.blockhash).toBe(blockHash);
+    expect(transaction.size).toBe(5450);
+    expect(transaction.vsize).toBe(5450);
+    expect(transaction.fee).toBeUndefined();
+
+    expect(transaction.vout[0]?.scriptPubKey.type).toBe("witness_v2_mercatura_pq");
+
+    const blockTransaction = block.tx.find((tx) => tx.txid === txid);
+
+    expect(blockTransaction).toBeDefined();
+    expect(blockTransaction?.fee).toBe(0.06);
+
+    const stats = await client.getBlockStats(103);
+
+    expect(stats.height).toBe(103);
+    expect(stats.blockhash).toBe(blockHash);
+    expect(stats.subsidy).toBe(2378234);
+    expect(stats.totalfee).toBe(6);
+    expect(stats.txs).toBe(2);
+  });
 });
