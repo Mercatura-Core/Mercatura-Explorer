@@ -1,0 +1,75 @@
+import type { ColumnType, Generated } from "kysely";
+
+export type Int8 = ColumnType<string, string | number, string | number>;
+
+export type Timestamp = ColumnType<Date, Date | string | undefined, Date | string>;
+
+export interface BlocksTable {
+  hash: string;
+  height: number;
+  previous_hash: string | null;
+  time: Int8;
+  median_time: Int8;
+  bits: string;
+  target: string;
+  difficulty: number;
+  chainwork: string;
+  tx_count: number;
+  stripped_size: number;
+  size: number;
+  weight: number;
+  active: ColumnType<boolean, boolean | undefined, boolean>;
+}
+
+export interface TransactionsTable {
+  id: Generated<Int8>;
+  txid: string;
+  wtxid: string;
+  block_hash: string;
+  block_index: number;
+  version: number;
+  locktime: Int8;
+  size: number;
+  vsize: number;
+  weight: number;
+  fee_base_units: Int8 | null;
+  hex: string;
+}
+
+export interface TransactionInputsTable {
+  transaction_id: Int8;
+  vin: number;
+  prev_txid: string | null;
+  prev_vout: number | null;
+  sequence: Int8;
+  coinbase: string | null;
+  script_sig_asm: string | null;
+  script_sig_hex: string | null;
+  witness: string[] | null;
+}
+
+export interface TransactionOutputsTable {
+  transaction_id: Int8;
+  vout: number;
+  value_base_units: Int8;
+  script_asm: string;
+  script_desc: string;
+  script_hex: string;
+  address: string | null;
+  script_type: string;
+}
+
+export interface ChainStateTable {
+  id: number;
+  tip_hash: string | null;
+  tip_height: number | null;
+  updated_at: Timestamp;
+}
+
+export interface Database {
+  blocks: BlocksTable;
+  transactions: TransactionsTable;
+  transaction_inputs: TransactionInputsTable;
+  transaction_outputs: TransactionOutputsTable;
+  chain_state: ChainStateTable;
+}
