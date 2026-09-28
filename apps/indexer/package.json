@@ -1,0 +1,16 @@
+{
+  "name": "@mercatura/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "status": "tsx src/status.ts"
+  },
+  "dependencies": {
+    "@mercatura/database": "0.1.0",
+    "@mercatura/mercatura-rpc": "0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}
