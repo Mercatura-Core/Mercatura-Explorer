@@ -7,7 +7,8 @@
     "status": "tsx src/status.ts",
     "ingest:next": "tsx src/ingest-next.ts",
     "sync": "tsx src/sync.ts",
-    "find-common-ancestor": "tsx src/find-common-ancestor.ts"
+    "find-common-ancestor": "tsx src/find-common-ancestor.ts",
+    "rewind-to-common-ancestor": "tsx src/rewind-to-common-ancestor.ts"
   },
   "dependencies": {
     "@mercatura/database": "0.1.0",
