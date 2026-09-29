@@ -1,9 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { fetchExplorerApi } from "../lib/explorer-server-api";
+import { parseExplorerNetwork } from "../lib/explorer-network";
+
 type MetricIconName = "block" | "hashrate" | "difficulty" | "supply" | "reward";
 
-const metrics: {
+const metricDefinitions: {
   label: string;
   icon: MetricIconName;
   note: string;
@@ -202,9 +205,97 @@ function NetworkSketch() {
   );
 }
 
+function formatMca(baseUnits: string | null | undefined): string {
+  if (baseUnits === null || baseUnits === undefined) {
+    return "Unavailable";
+  }
+
+  const value = BigInt(baseUnits);
+  const baseUnitsPerMca = BigInt(100);
+  const whole = value / baseUnitsPerMca;
+  const fraction = (value % baseUnitsPerMca).toString().padStart(2, "0");
+
+  return `${whole.toLocaleString("en-US")}.${fraction} MCA`;
+}
+
+function formatHashrate(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Unavailable";
+  }
+
+  const units = ["H/s", "kH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
+  let scaled = value;
+  let unitIndex = 0;
+
+  while (Math.abs(scaled) >= 1000 && unitIndex < units.length - 1) {
+    scaled /= 1000;
+    unitIndex += 1;
+  }
+
+  return `${new Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 4,
+  }).format(scaled)} ${units[unitIndex]}`;
+}
+
+function formatDifficulty(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Unavailable";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 5,
+  }).format(value);
+}
+
 const placeholderRows = [0, 1, 2, 3, 4];
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    network?: string | string[];
+  }>;
+}) {
+  const parameters = await searchParams;
+  const requestedNetwork = Array.isArray(parameters.network)
+    ? parameters.network[0]
+    : parameters.network;
+  const network = parseExplorerNetwork(requestedNetwork);
+
+  const [summary, coreStatus, emission] = await Promise.all([
+    fetchExplorerApi<{
+      chain: {
+        indexedHeight: number | null;
+      };
+    }>(network, "summary"),
+
+    fetchExplorerApi<{
+      mining: {
+        difficulty: number;
+        networkHashPerSecond: number;
+      };
+    }>(network, "core/status"),
+
+    fetchExplorerApi<{
+      totals: {
+        actualIssuedExcludingGenesisBaseUnits: string;
+      };
+      current: {
+        subsidyBaseUnits: string;
+      } | null;
+    }>(network, "emission?limit=1"),
+  ]);
+
+  const metricValues = [
+    summary?.chain.indexedHeight === null || summary?.chain.indexedHeight === undefined
+      ? "Unavailable"
+      : summary.chain.indexedHeight.toLocaleString("en-US"),
+    formatHashrate(coreStatus?.mining.networkHashPerSecond),
+    formatDifficulty(coreStatus?.mining.difficulty),
+    formatMca(emission?.totals.actualIssuedExcludingGenesisBaseUnits),
+    formatMca(emission?.current?.subsidyBaseUnits),
+  ];
+
   return (
     <main className="pb-12">
       <section className="hero-stage border-b border-[#191812]">
@@ -259,7 +350,7 @@ export default function Home() {
           </div>
 
           <div className="relative z-10 mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {metrics.map((metric) => (
+            {metricDefinitions.map((metric, index) => (
               <article
                 key={metric.label}
                 className="gold-panel flex min-h-[102px] items-center gap-4 rounded-[10px] px-4 py-4"
@@ -273,8 +364,8 @@ export default function Home() {
                     {metric.label}
                   </p>
 
-                  <div className="mt-2 flex h-5 items-center">
-                    <Skeleton width="w-24" gold />
+                  <div className="mt-2 truncate text-[17px] font-semibold text-[#e5b348]">
+                    {metricValues[index] ?? "Unavailable"}
                   </div>
 
                   <p className="mt-2 truncate text-[11px] text-[#777875]">{metric.note}</p>
