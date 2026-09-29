@@ -1,16 +1,39 @@
 import { createDatabase } from "@mercatura/database";
 
-import { assertIndexedTipMatchesCore } from "./chain-consistency.js";
+import { assertIndexedTipMatchesCore, IndexedChainDivergenceError } from "./chain-consistency.js";
+import { findCommonAncestor } from "./common-ancestor.js";
 import { ingestBlock } from "./ingest-block.js";
+import { rewindToCommonAncestor } from "./rewind.js";
 import { createRpcClient } from "./rpc.js";
 
 const db = createDatabase();
 const rpc = createRpcClient();
 
 try {
-  await assertIndexedTipMatchesCore(db, rpc);
-
   const blockchain = await rpc.getBlockchainInfo();
+  const targetHeight = blockchain.blocks;
+
+  try {
+    await assertIndexedTipMatchesCore(db, rpc);
+  } catch (error) {
+    if (!(error instanceof IndexedChainDivergenceError)) {
+      throw error;
+    }
+
+    console.log("Indexed chain divergence detected.");
+    console.log(error.message);
+
+    const ancestor = await findCommonAncestor(db, rpc);
+
+    if (ancestor === null) {
+      throw new Error("No common ancestor found; refusing automatic reorg recovery");
+    }
+
+    const rewoundBlocks = await rewindToCommonAncestor(db, ancestor);
+
+    console.log(`Rewound to common ancestor height ${ancestor.height}: ${ancestor.hash}`);
+    console.log(`Blocks deactivated: ${rewoundBlocks}`);
+  }
 
   const state = await db
     .selectFrom("chain_state")
@@ -18,7 +41,6 @@ try {
     .where("id", "=", 1)
     .executeTakeFirstOrThrow();
 
-  const targetHeight = blockchain.blocks;
   const startHeight = state.tip_height === null ? 0 : state.tip_height + 1;
 
   console.log("Mercatura Explorer Sync");
@@ -29,7 +51,6 @@ try {
 
   if (startHeight > targetHeight) {
     console.log("Database is already synchronized.");
-    process.exitCode = 0;
   } else {
     for (let height = startHeight; height <= targetHeight; height++) {
       const hash = await ingestBlock(db, rpc, height);
