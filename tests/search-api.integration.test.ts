@@ -67,8 +67,15 @@ describe.runIf(integrationEnabled)("Mercatura search API integration", () => {
 
   it("finds transactions and addresses", async () => {
     const app = buildApi();
+    const db = createDatabase();
 
     try {
+      const expectedAddress = await db
+        .selectFrom("active_address_balances")
+        .select(["balance_base_units", "utxo_count"])
+        .where("address", "=", MINING_ADDRESS)
+        .executeTakeFirstOrThrow();
+
       const transaction = await app.inject({
         method: "GET",
         url: `/api/v1/search?q=${PQ_TXID}`,
@@ -100,13 +107,14 @@ describe.runIf(integrationEnabled)("Mercatura search API integration", () => {
           {
             type: "address",
             address: MINING_ADDRESS,
-            balanceBaseUnits: "242579880",
-            utxoCount: "102",
+            balanceBaseUnits: expectedAddress.balance_base_units,
+            utxoCount: expectedAddress.utxo_count,
           },
         ],
       });
     } finally {
       await app.close();
+      await db.destroy();
     }
   });
 

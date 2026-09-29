@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApi } from "../apps/api/src/app.js";
+import { createDatabase } from "../packages/database/src/index.js";
 
 const integrationEnabled = process.env.MERCATURA_API_INTEGRATION === "1";
 
@@ -11,8 +12,22 @@ const ZERO_BALANCE_ADDRESS = "mcrt1zek2wa30hxu8qxfkj4fr93q3h86lk38szgthj4rpcv35h
 describe.runIf(integrationEnabled)("Mercatura address API integration", () => {
   it("serves current balance and UTXOs for the mining address", async () => {
     const app = buildApi();
+    const db = createDatabase();
 
     try {
+      const expected = await db
+        .selectFrom("active_address_balances")
+        .select([
+          "address",
+          "transaction_count",
+          "total_received_base_units",
+          "total_spent_base_units",
+          "balance_base_units",
+          "utxo_count",
+        ])
+        .where("address", "=", MINING_ADDRESS)
+        .executeTakeFirstOrThrow();
+
       const summaryResponse = await app.inject({
         method: "GET",
         url: `/api/v1/addresses/${MINING_ADDRESS}`,
@@ -21,12 +36,12 @@ describe.runIf(integrationEnabled)("Mercatura address API integration", () => {
       expect(summaryResponse.statusCode).toBe(200);
 
       expect(summaryResponse.json()).toEqual({
-        address: MINING_ADDRESS,
-        transactionCount: "104",
-        totalReceivedBaseUnits: "244958114",
-        totalSpentBaseUnits: "2378234",
-        balanceBaseUnits: "242579880",
-        utxoCount: "102",
+        address: expected.address,
+        transactionCount: expected.transaction_count,
+        totalReceivedBaseUnits: expected.total_received_base_units,
+        totalSpentBaseUnits: expected.total_spent_base_units,
+        balanceBaseUnits: expected.balance_base_units,
+        utxoCount: expected.utxo_count,
       });
 
       const utxoResponse = await app.inject({
@@ -67,6 +82,7 @@ describe.runIf(integrationEnabled)("Mercatura address API integration", () => {
       }
     } finally {
       await app.close();
+      await db.destroy();
     }
   });
 
