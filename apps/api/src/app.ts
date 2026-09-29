@@ -9,6 +9,7 @@ import { registerCoreStatusRoutes, type CoreStatusRpc } from "./routes/core-stat
 import { registerEmissionRoutes } from "./routes/emission.js";
 import { registerMiningRoutes } from "./routes/mining.js";
 import { registerSearchRoutes } from "./routes/search.js";
+import { registerStatisticsRoutes } from "./routes/statistics.js";
 import { registerSummaryRoutes } from "./routes/summary.js";
 import { registerTransactionRoutes } from "./routes/transactions.js";
 
@@ -93,6 +94,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerCoreStatusRoutes(app, getRpc);
   registerEmissionRoutes(app, database);
   registerMiningRoutes(app, database);
+  registerStatisticsRoutes(app, database);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
