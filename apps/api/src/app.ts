@@ -5,6 +5,7 @@ import { createDatabase } from "@mercatura/database";
 import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerSearchRoutes } from "./routes/search.js";
+import { registerSummaryRoutes } from "./routes/summary.js";
 import { registerTransactionRoutes } from "./routes/transactions.js";
 
 type ExplorerDatabase = ReturnType<typeof createDatabase>;
@@ -50,6 +51,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerTransactionRoutes(app, database);
   registerAddressRoutes(app, database);
   registerSearchRoutes(app, database);
+  registerSummaryRoutes(app, database);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
