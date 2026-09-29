@@ -83,11 +83,35 @@ export interface ActiveUtxosView {
   is_coinbase: boolean;
 }
 
+export interface ActiveAddressTransactionsView {
+  address: string;
+  transaction_id: string;
+  txid: string;
+  block_hash: string;
+  block_height: number;
+  block_time: Int8;
+  block_index: number;
+  received_base_units: Int8;
+  spent_base_units: Int8;
+  net_base_units: Int8;
+}
+
+export interface ActiveAddressBalancesView {
+  address: string;
+  transaction_count: Int8;
+  total_received_base_units: Int8;
+  total_spent_base_units: Int8;
+  balance_base_units: Int8;
+  utxo_count: Int8;
+}
+
 export interface Database {
   blocks: BlocksTable;
   transactions: TransactionsTable;
   transaction_inputs: TransactionInputsTable;
   transaction_outputs: TransactionOutputsTable;
   active_utxos: ActiveUtxosView;
+  active_address_transactions: ActiveAddressTransactionsView;
+  active_address_balances: ActiveAddressBalancesView;
   chain_state: ChainStateTable;
 }

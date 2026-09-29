@@ -1,6 +1,8 @@
 export { createDatabase } from "./database.js";
 
 export type {
+  ActiveAddressBalancesView,
+  ActiveAddressTransactionsView,
   ActiveUtxosView,
   BlocksTable,
   ChainStateTable,
