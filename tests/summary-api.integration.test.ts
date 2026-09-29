@@ -84,6 +84,10 @@ describe.runIf(integrationEnabled)("Mercatura summary API integration", () => {
           txid: string;
           block_height: number;
           block_index: number;
+          coinbase: boolean;
+          inputAddresses: string[];
+          outputAddresses: string[];
+          totalOutputBaseUnits: string;
         }>;
       }>();
 
@@ -113,6 +117,20 @@ describe.runIf(integrationEnabled)("Mercatura summary API integration", () => {
 
       expect(body.recentTransactions.length).toBeGreaterThan(0);
       expect(body.recentTransactions.length).toBeLessThanOrEqual(10);
+
+      for (const transaction of body.recentTransactions) {
+        expect(transaction.coinbase).toBe(transaction.block_index === 0);
+
+        expect(new Set(transaction.inputAddresses).size).toBe(transaction.inputAddresses.length);
+
+        expect(new Set(transaction.outputAddresses).size).toBe(transaction.outputAddresses.length);
+
+        expect(BigInt(transaction.totalOutputBaseUnits)).toBeGreaterThanOrEqual(BigInt(0));
+
+        if (transaction.coinbase) {
+          expect(transaction.inputAddresses).toHaveLength(0);
+        }
+      }
 
       for (let index = 1; index < body.recentTransactions.length; index++) {
         const previous = body.recentTransactions[index - 1]!;
