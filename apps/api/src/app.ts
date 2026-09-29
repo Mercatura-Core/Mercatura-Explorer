@@ -7,6 +7,7 @@ import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerCoreStatusRoutes, type CoreStatusRpc } from "./routes/core-status.js";
 import { registerEmissionRoutes } from "./routes/emission.js";
+import { registerMiningRoutes } from "./routes/mining.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerSummaryRoutes } from "./routes/summary.js";
 import { registerTransactionRoutes } from "./routes/transactions.js";
@@ -91,6 +92,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerSummaryRoutes(app, database);
   registerCoreStatusRoutes(app, getRpc);
   registerEmissionRoutes(app, database);
+  registerMiningRoutes(app, database);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
