@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { NetworkSelector } from "./network-selector";
+
 const navigation = [
   { label: "Explorer", href: "/", active: true },
   { label: "Network", href: "/#network", active: false },
@@ -64,28 +66,7 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        <label className="relative ml-3">
-          <span className="sr-only">Explorer network</span>
-
-          <select
-            aria-label="Explorer network"
-            defaultValue="mainnet"
-            title="Network switching will be connected to live data in Phase 17G"
-            className="appearance-none rounded-full border border-[#55401d] bg-[#0d0e0c] py-2 pl-3 pr-8 text-xs font-medium text-[#dfb04a] outline-none transition hover:border-[#8a6729] focus:border-[#c39336]"
-          >
-            <option value="mainnet">Mainnet</option>
-            <option value="testnet">Testnet</option>
-          </select>
-
-          <svg
-            viewBox="0 0 20 20"
-            aria-hidden="true"
-            className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[#a27a32]"
-            fill="currentColor"
-          >
-            <path d="m5.5 7.5 4.5 4.5 4.5-4.5" />
-          </svg>
-        </label>
+        <NetworkSelector />
 
         <nav
           aria-label="Primary navigation"
