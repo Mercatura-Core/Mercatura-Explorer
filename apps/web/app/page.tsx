@@ -247,6 +247,52 @@ function formatDifficulty(value: number | null | undefined): string {
   }).format(value);
 }
 
+function formatBlockTime(value: string): string {
+  const timestamp = Date.parse(value);
+
+  if (!Number.isFinite(timestamp)) {
+    return "Unavailable";
+  }
+
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (seconds < 60) {
+    return `${seconds}s ago`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  return `${days}d ago`;
+}
+
+function formatBlockSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return "Unavailable";
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KiB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
+}
+
 const placeholderRows = [0, 1, 2, 3, 4];
 
 export default async function Home({
@@ -267,6 +313,15 @@ export default async function Home({
       chain: {
         indexedHeight: number | null;
       };
+      recentBlocks: Array<{
+        hash: string;
+        height: number;
+        time: string;
+        tx_count: number;
+        size: number;
+        weight: number;
+        difficulty: number;
+      }>;
     }>(network, "summary"),
 
     fetchExplorerApi<{
@@ -283,7 +338,13 @@ export default async function Home({
       current: {
         subsidyBaseUnits: string;
       } | null;
-    }>(network, "emission?limit=1"),
+      history: Array<{
+        height: number;
+        hash: string;
+        time: string;
+        subsidy_base_units: string;
+      }>;
+    }>(network, "emission?limit=10"),
   ]);
 
   const metricValues = [
@@ -295,6 +356,12 @@ export default async function Home({
     formatMca(emission?.totals.actualIssuedExcludingGenesisBaseUnits),
     formatMca(emission?.current?.subsidyBaseUnits),
   ];
+
+  const latestBlocks = summary?.recentBlocks.slice(0, 5) ?? [];
+
+  const subsidyByBlockHash = new Map(
+    (emission?.history ?? []).map((row) => [row.hash, row.subsidy_base_units])
+  );
 
   return (
     <main className="pb-12">
@@ -408,31 +475,46 @@ export default async function Home({
                 </thead>
 
                 <tbody>
-                  {placeholderRows.map((row) => (
-                    <tr key={row}>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <MetricIcon name="block" />
-                          <Skeleton width="w-14" gold />
-                        </div>
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-16" />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-20" />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-12" />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-16" gold />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-14" />
+                  {latestBlocks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-10 text-center text-xs text-[#777975]">
+                        {network === "mainnet" ? "Mainnet" : "Testnet"} block data is unavailable.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    latestBlocks.map((block) => (
+                      <tr key={block.hash}>
+                        <td className="border-b border-[#242625] px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#d8a33a]">◇</span>
+                            <span className="font-mono text-xs text-[#d8a33a]">
+                              {block.hash.slice(0, 8)}…
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs font-medium text-[#d8a33a]">
+                          {block.height.toLocaleString("en-US")}
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#a2a3a0]">
+                          {formatBlockTime(block.time)}
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#c2c3bf]">
+                          {block.tx_count.toLocaleString("en-US")}
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs font-medium text-[#d8a33a]">
+                          {formatMca(subsidyByBlockHash.get(block.hash))}
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#a2a3a0]">
+                          {formatBlockSize(block.size)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
