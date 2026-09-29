@@ -6,7 +6,8 @@
   "scripts": {
     "status": "tsx src/status.ts",
     "ingest:next": "tsx src/ingest-next.ts",
-    "sync": "tsx src/sync.ts"
+    "sync": "tsx src/sync.ts",
+    "find-common-ancestor": "tsx src/find-common-ancestor.ts"
   },
   "dependencies": {
     "@mercatura/database": "0.1.0",
