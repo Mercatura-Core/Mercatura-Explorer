@@ -25,3 +25,24 @@ describe("Mercatura Explorer API", () => {
     });
   });
 });
+
+describe("Mercatura Explorer API errors", () => {
+  it("returns a consistent JSON response for unknown routes", async () => {
+    const app = buildApi();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/does-not-exist",
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        error: "not_found",
+        message: "Route not found",
+      });
+    } finally {
+      await app.close();
+    }
+  });
+});

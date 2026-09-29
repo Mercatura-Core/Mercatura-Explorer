@@ -36,6 +36,29 @@ export function buildApi(options: BuildApiOptions = {}) {
     logger: options.logger ?? false,
   });
 
+  app.setNotFoundHandler(async (_request, reply) => {
+    return reply.code(404).send({
+      error: "not_found",
+      message: "Route not found",
+    });
+  });
+
+  app.setErrorHandler(async (error, request, reply) => {
+    request.log.error(error);
+
+    if (reply.statusCode >= 400 && reply.statusCode < 500) {
+      return reply.send({
+        error: "invalid_request",
+        message: error instanceof Error ? error.message : "Invalid request",
+      });
+    }
+
+    return reply.code(500).send({
+      error: "internal_error",
+      message: "An internal server error occurred",
+    });
+  });
+
   app.get("/health", async () => {
     return {
       status: "ok",

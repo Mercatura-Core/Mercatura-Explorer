@@ -147,3 +147,40 @@ describe("Mercatura Core status API", () => {
     }
   });
 });
+
+describe("Mercatura Core status API errors", () => {
+  it("does not expose internal upstream error details", async () => {
+    const fail = async (): Promise<never> => {
+      throw new Error("sensitive upstream RPC detail");
+    };
+
+    const rpc = {
+      getBlockchainInfo: fail,
+      getNetworkInfo: fail,
+      getMiningInfo: fail,
+      getMempoolInfo: fail,
+    } satisfies CoreStatusRpc;
+
+    const app = buildApi({
+      rpc,
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/core/status",
+      });
+
+      expect(response.statusCode).toBe(500);
+
+      expect(response.json()).toEqual({
+        error: "internal_error",
+        message: "An internal server error occurred",
+      });
+
+      expect(response.body).not.toContain("sensitive upstream RPC detail");
+    } finally {
+      await app.close();
+    }
+  });
+});
