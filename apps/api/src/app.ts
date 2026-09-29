@@ -1,9 +1,11 @@
 import Fastify from "fastify";
 
 import { createDatabase } from "@mercatura/database";
+import { createRpcClient } from "@mercatura/mercatura-rpc";
 
 import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
+import { registerCoreStatusRoutes, type CoreStatusRpc } from "./routes/core-status.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerSummaryRoutes } from "./routes/summary.js";
 import { registerTransactionRoutes } from "./routes/transactions.js";
@@ -12,12 +14,23 @@ type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
 export interface BuildApiOptions {
   database?: ExplorerDatabase;
+  rpc?: CoreStatusRpc;
   logger?: boolean;
 }
 
 export function buildApi(options: BuildApiOptions = {}) {
   const ownsDatabase = options.database === undefined;
   const database = options.database ?? createDatabase();
+
+  let rpc: CoreStatusRpc | undefined = options.rpc;
+
+  const getRpc = (): CoreStatusRpc => {
+    if (rpc === undefined) {
+      rpc = createRpcClient();
+    }
+
+    return rpc;
+  };
 
   const app = Fastify({
     logger: options.logger ?? false,
@@ -52,6 +65,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerAddressRoutes(app, database);
   registerSearchRoutes(app, database);
   registerSummaryRoutes(app, database);
+  registerCoreStatusRoutes(app, getRpc);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
