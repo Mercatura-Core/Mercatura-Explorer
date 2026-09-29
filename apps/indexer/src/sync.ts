@@ -1,5 +1,6 @@
 import { createDatabase } from "@mercatura/database";
 
+import { assertIndexedTipMatchesCore } from "./chain-consistency.js";
 import { ingestBlock } from "./ingest-block.js";
 import { createRpcClient } from "./rpc.js";
 
@@ -7,6 +8,8 @@ const db = createDatabase();
 const rpc = createRpcClient();
 
 try {
+  await assertIndexedTipMatchesCore(db, rpc);
+
   const blockchain = await rpc.getBlockchainInfo();
 
   const state = await db
