@@ -3,9 +3,12 @@ import { type BlockStats, type RpcTransaction, type VerboseBlock } from "./chain
 import {
   MercaturaRpcError,
   type BlockchainInfo,
+  type AddrManInfo,
   type MempoolInfo,
   type MiningInfo,
   type NetworkInfo,
+  type NodeAddress,
+  type PeerInfo,
   type RpcClientOptions,
   type RpcResponse,
 } from "./types.js";
@@ -71,6 +74,24 @@ export class MercaturaRpcClient {
 
   getMempoolInfo(): Promise<MempoolInfo> {
     return this.call<MempoolInfo>("getmempoolinfo");
+  }
+
+  getPeerInfo(): Promise<PeerInfo[]> {
+    return this.call<PeerInfo[]>("getpeerinfo");
+  }
+
+  getNodeAddresses(count = 0, network?: string): Promise<NodeAddress[]> {
+    const params: unknown[] = [count];
+
+    if (network !== undefined) {
+      params.push(network);
+    }
+
+    return this.call<NodeAddress[]>("getnodeaddresses", params);
+  }
+
+  getAddrManInfo(): Promise<AddrManInfo> {
+    return this.call<AddrManInfo>("getaddrmaninfo");
   }
 
   getBlockCount(): Promise<number> {

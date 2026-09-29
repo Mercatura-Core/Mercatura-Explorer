@@ -3,6 +3,8 @@ export { createRpcClient } from "./factory.js";
 
 export {
   MercaturaRpcError,
+  type AddrManInfo,
+  type AddrManNetworkInfo,
   type BlockchainInfo,
   type LocalAddress,
   type MempoolInfo,
@@ -10,6 +12,8 @@ export {
   type NetworkDefinition,
   type NetworkInfo,
   type NextMiningInfo,
+  type NodeAddress,
+  type PeerInfo,
   type RpcClientOptions,
   type RpcCredentials,
   type RpcErrorData,

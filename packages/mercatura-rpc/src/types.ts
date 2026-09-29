@@ -120,3 +120,53 @@ export class MercaturaRpcError extends Error {
     this.code = code;
   }
 }
+
+export interface PeerInfo {
+  id: number;
+  addr: string;
+  network: string;
+  services: string;
+  servicesnames: string[];
+  relaytxes: boolean;
+  lastsend: number;
+  lastrecv: number;
+  last_transaction: number;
+  last_block: number;
+  bytessent: number;
+  bytesrecv: number;
+  conntime: number;
+  timeoffset: number;
+  pingtime?: number;
+  minping?: number;
+  version: number;
+  subver: string;
+  inbound: boolean;
+  presynced_headers: number;
+  synced_headers: number;
+  synced_blocks: number;
+  addr_relay_enabled: boolean;
+  addr_processed: number;
+  addr_rate_limited: number;
+  permissions: string[];
+  minfeefilter: number;
+  connection_type: string;
+  transport_protocol_type: string;
+  session_id: string;
+  mapped_as?: number;
+}
+
+export interface NodeAddress {
+  time: number;
+  services: number;
+  address: string;
+  port: number;
+  network: string;
+}
+
+export interface AddrManNetworkInfo {
+  new: number;
+  tried: number;
+  total: number;
+}
+
+export type AddrManInfo = Record<string, AddrManNetworkInfo>;

@@ -8,6 +8,7 @@ import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerCoreStatusRoutes, type CoreStatusRpc } from "./routes/core-status.js";
 import { registerEmissionRoutes } from "./routes/emission.js";
 import { registerMiningRoutes } from "./routes/mining.js";
+import { registerNetworkRoutes, type NetworkRpc } from "./routes/network.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerStatisticsRoutes } from "./routes/statistics.js";
 import { registerSummaryRoutes } from "./routes/summary.js";
@@ -18,6 +19,7 @@ type ExplorerDatabase = ReturnType<typeof createDatabase>;
 export interface BuildApiOptions {
   database?: ExplorerDatabase;
   rpc?: CoreStatusRpc;
+  networkRpc?: NetworkRpc;
   logger?: boolean;
 }
 
@@ -25,14 +27,33 @@ export function buildApi(options: BuildApiOptions = {}) {
   const ownsDatabase = options.database === undefined;
   const database = options.database ?? createDatabase();
 
+  let defaultRpc: ReturnType<typeof createRpcClient> | undefined;
+
+  const getDefaultRpc = () => {
+    if (defaultRpc === undefined) {
+      defaultRpc = createRpcClient();
+    }
+
+    return defaultRpc;
+  };
+
   let rpc: CoreStatusRpc | undefined = options.rpc;
+  let networkRpc: NetworkRpc | undefined = options.networkRpc;
 
   const getRpc = (): CoreStatusRpc => {
     if (rpc === undefined) {
-      rpc = createRpcClient();
+      rpc = getDefaultRpc();
     }
 
     return rpc;
+  };
+
+  const getNetworkRpc = (): NetworkRpc => {
+    if (networkRpc === undefined) {
+      networkRpc = getDefaultRpc();
+    }
+
+    return networkRpc;
   };
 
   const app = Fastify({
@@ -95,6 +116,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerEmissionRoutes(app, database);
   registerMiningRoutes(app, database);
   registerStatisticsRoutes(app, database);
+  registerNetworkRoutes(app, getNetworkRpc);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
