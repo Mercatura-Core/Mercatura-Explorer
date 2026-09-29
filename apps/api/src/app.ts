@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { createDatabase } from "@mercatura/database";
 
 import { registerBlockRoutes } from "./routes/blocks.js";
+import { registerTransactionRoutes } from "./routes/transactions.js";
 
 type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
@@ -44,6 +45,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   });
 
   registerBlockRoutes(app, database);
+  registerTransactionRoutes(app, database);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
