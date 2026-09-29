@@ -13,9 +13,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "echo \"Build scripts will be added as applications are introduced.\"",
+    "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck -w @mercatura/web",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

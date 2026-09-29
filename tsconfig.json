@@ -21,5 +21,6 @@
     "packages/**/*.ts",
     "packages/**/*.tsx",
     "tests/**/*.ts"
-  ]
+  ],
+  "exclude": ["apps/web/**"]
 }
