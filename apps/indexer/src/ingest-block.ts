@@ -4,6 +4,7 @@ import type { Database } from "@mercatura/database";
 import type { MercaturaRpcClient, TransactionInput } from "@mercatura/mercatura-rpc";
 
 import { mcaToBaseUnits } from "./amount.js";
+import { resolvePrevoutTransactionId } from "./prevout.js";
 
 function isCoinbaseInput(
   input: TransactionInput
@@ -137,6 +138,16 @@ export async function ingestBlock(
         for (const [vin, input] of tx.vin.entries()) {
           const coinbase = isCoinbaseInput(input);
 
+          const resolvedPrevTransactionId = coinbase
+            ? null
+            : await resolvePrevoutTransactionId(
+                trx,
+                input.txid,
+                input.vout,
+                block.height,
+                blockIndex
+              );
+
           await trx
             .insertInto("transaction_inputs")
             .values({
@@ -144,6 +155,7 @@ export async function ingestBlock(
               vin,
               prev_txid: coinbase ? null : input.txid,
               prev_vout: coinbase ? null : input.vout,
+              resolved_prev_transaction_id: resolvedPrevTransactionId,
               sequence: input.sequence,
               coinbase: coinbase ? input.coinbase : null,
               script_sig_asm: coinbase ? null : input.scriptSig.asm,
