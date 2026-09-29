@@ -22,7 +22,7 @@ export interface BlocksTable {
 }
 
 export interface TransactionsTable {
-  id: Generated<Int8>;
+  id: Generated<string>;
   txid: string;
   wtxid: string;
   block_hash: string;
