@@ -152,18 +152,6 @@ function PanelTitleIcon({ type }: { type: "blocks" | "transactions" }) {
   );
 }
 
-function Skeleton({ width = "w-20", gold = false }: { width?: string; gold?: boolean }) {
-  return (
-    <span
-      className={[
-        "inline-block h-3 rounded-full",
-        width,
-        gold ? "bg-[#7a5a21]/55" : "bg-[#242626]",
-      ].join(" ")}
-    />
-  );
-}
-
 function NetworkSketch() {
   return (
     <svg viewBox="0 0 680 250" aria-label="Network map placeholder" className="h-full w-full">
@@ -293,7 +281,29 @@ function formatBlockSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
 }
 
-const placeholderRows = [0, 1, 2, 3, 4];
+function shortenAddress(address: string): string {
+  if (address.length <= 18) {
+    return address;
+  }
+
+  return `${address.slice(0, 9)}…${address.slice(-7)}`;
+}
+
+function formatTransactionParty(addresses: string[], coinbase = false): string {
+  if (coinbase) {
+    return "Coinbase";
+  }
+
+  if (addresses.length === 0) {
+    return "Unresolved";
+  }
+
+  if (addresses.length === 1) {
+    return shortenAddress(addresses[0]!);
+  }
+
+  return `${addresses.length} addresses`;
+}
 
 export default async function Home({
   searchParams,
@@ -321,6 +331,16 @@ export default async function Home({
         size: number;
         weight: number;
         difficulty: number;
+      }>;
+      recentTransactions: Array<{
+        txid: string;
+        block_height: number;
+        block_time: string;
+        block_index: number;
+        coinbase: boolean;
+        inputAddresses: string[];
+        outputAddresses: string[];
+        totalOutputBaseUnits: string;
       }>;
     }>(network, "summary"),
 
@@ -358,6 +378,7 @@ export default async function Home({
   ];
 
   const latestBlocks = summary?.recentBlocks.slice(0, 5) ?? [];
+  const recentTransactions = summary?.recentTransactions.slice(0, 5) ?? [];
 
   const subsidyByBlockHash = new Map(
     (emission?.history ?? []).map((row) => [row.hash, row.subsidy_base_units])
@@ -549,28 +570,59 @@ export default async function Home({
                 </thead>
 
                 <tbody>
-                  {placeholderRows.map((row) => (
-                    <tr key={row}>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[#d8a33a]">⇄</span>
-                          <Skeleton width="w-20" gold />
-                        </div>
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-20" gold />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-20" gold />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-20" />
-                      </td>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Skeleton width="w-16" />
+                  {recentTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-10 text-center text-xs text-[#777975]">
+                        {network === "mainnet" ? "Mainnet" : "Testnet"} transaction data is
+                        unavailable.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    recentTransactions.map((transaction) => (
+                      <tr key={transaction.txid}>
+                        <td className="border-b border-[#242625] px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#d8a33a]">⇄</span>
+                            <span
+                              className="font-mono text-xs text-[#d8a33a]"
+                              title={transaction.txid}
+                            >
+                              {transaction.txid.slice(0, 10)}…
+                            </span>
+                          </div>
+                        </td>
+
+                        <td
+                          className="border-b border-[#242625] px-3 py-3 font-mono text-xs text-[#c3a45f]"
+                          title={
+                            transaction.coinbase
+                              ? "Coinbase transaction"
+                              : transaction.inputAddresses.join(", ")
+                          }
+                        >
+                          {formatTransactionParty(transaction.inputAddresses, transaction.coinbase)}
+                        </td>
+
+                        <td
+                          className="border-b border-[#242625] px-3 py-3 font-mono text-xs text-[#c3a45f]"
+                          title={transaction.outputAddresses.join(", ")}
+                        >
+                          {formatTransactionParty(transaction.outputAddresses)}
+                        </td>
+
+                        <td
+                          className="border-b border-[#242625] px-3 py-3 text-xs font-medium text-[#d8a33a]"
+                          title="Total value of all transaction outputs"
+                        >
+                          {formatMca(transaction.totalOutputBaseUnits)}
+                        </td>
+
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#a2a3a0]">
+                          {formatBlockTime(transaction.block_time)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
