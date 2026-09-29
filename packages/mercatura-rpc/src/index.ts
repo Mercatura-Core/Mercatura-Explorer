@@ -1,4 +1,5 @@
 export { MercaturaRpcClient } from "./client.js";
+export { createRpcClient } from "./factory.js";
 
 export {
   MercaturaRpcError,
