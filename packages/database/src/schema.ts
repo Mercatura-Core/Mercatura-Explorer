@@ -67,6 +67,20 @@ export interface ChainStateTable {
   updated_at: Timestamp;
 }
 
+export interface BlockStatsTable {
+  block_hash: string;
+  subsidy_base_units: Int8;
+  total_fee_base_units: Int8;
+  total_out_base_units: Int8;
+  transaction_count: number;
+  input_count: number;
+  output_count: number;
+  total_size: number;
+  total_weight: number;
+  utxo_increase: number;
+  utxo_increase_actual: number;
+}
+
 export interface ActiveUtxosView {
   transaction_id: string;
   txid: string;
@@ -107,6 +121,7 @@ export interface ActiveAddressBalancesView {
 
 export interface Database {
   blocks: BlocksTable;
+  block_stats: BlockStatsTable;
   transactions: TransactionsTable;
   transaction_inputs: TransactionInputsTable;
   transaction_outputs: TransactionOutputsTable;

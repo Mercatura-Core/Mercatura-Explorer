@@ -5,6 +5,7 @@ export type {
   ActiveAddressTransactionsView,
   ActiveUtxosView,
   BlocksTable,
+  BlockStatsTable,
   ChainStateTable,
   Database,
   Int8,

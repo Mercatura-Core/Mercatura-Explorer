@@ -4,6 +4,7 @@ import type { Database } from "@mercatura/database";
 import type { MercaturaRpcClient, TransactionInput } from "@mercatura/mercatura-rpc";
 
 import { mcaToBaseUnits } from "./amount.js";
+import { fetchValidatedBlockStats } from "./block-stats.js";
 import { resolvePrevoutTransactionId } from "./prevout.js";
 
 function isCoinbaseInput(
@@ -27,6 +28,8 @@ export async function ingestBlock(
   if (block.hash !== blockHash) {
     throw new Error(`Block hash mismatch: requested ${blockHash}, received ${block.hash}`);
   }
+
+  const blockStats = await fetchValidatedBlockStats(rpc, block.hash, block.height, block.nTx);
 
   await db.transaction().execute(async (trx) => {
     const state = await trx
@@ -185,6 +188,25 @@ export async function ingestBlock(
         }
       }
     }
+
+    await trx
+      .insertInto("block_stats")
+      .values(blockStats)
+      .onConflict((conflict) =>
+        conflict.column("block_hash").doUpdateSet({
+          subsidy_base_units: blockStats.subsidy_base_units,
+          total_fee_base_units: blockStats.total_fee_base_units,
+          total_out_base_units: blockStats.total_out_base_units,
+          transaction_count: blockStats.transaction_count,
+          input_count: blockStats.input_count,
+          output_count: blockStats.output_count,
+          total_size: blockStats.total_size,
+          total_weight: blockStats.total_weight,
+          utxo_increase: blockStats.utxo_increase,
+          utxo_increase_actual: blockStats.utxo_increase_actual,
+        })
+      )
+      .execute();
 
     await trx
       .updateTable("chain_state")
