@@ -67,10 +67,27 @@ export interface ChainStateTable {
   updated_at: Timestamp;
 }
 
+export interface ActiveUtxosView {
+  transaction_id: string;
+  txid: string;
+  vout: number;
+  value_base_units: Int8;
+  script_asm: string;
+  script_desc: string;
+  script_hex: string;
+  address: string | null;
+  script_type: string;
+  block_hash: string;
+  block_height: number;
+  block_time: Int8;
+  is_coinbase: boolean;
+}
+
 export interface Database {
   blocks: BlocksTable;
   transactions: TransactionsTable;
   transaction_inputs: TransactionInputsTable;
   transaction_outputs: TransactionOutputsTable;
+  active_utxos: ActiveUtxosView;
   chain_state: ChainStateTable;
 }

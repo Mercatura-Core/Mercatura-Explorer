@@ -1,6 +1,7 @@
 export { createDatabase } from "./database.js";
 
 export type {
+  ActiveUtxosView,
   BlocksTable,
   ChainStateTable,
   Database,
