@@ -305,11 +305,37 @@ function formatTransactionParty(addresses: string[], coinbase = false): string {
   return `${addresses.length} addresses`;
 }
 
+type SearchMatch =
+  | {
+      type: "block";
+      hash: string;
+      height: number;
+    }
+  | {
+      type: "transaction";
+      txid: string;
+      blockHash: string;
+      blockHeight: number;
+    }
+  | {
+      type: "address";
+      address: string;
+      transactionCount: string;
+      balanceBaseUnits: string;
+      utxoCount: string;
+    };
+
+type SearchResponse = {
+  query: string;
+  matches: SearchMatch[];
+};
+
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{
     network?: string | string[];
+    q?: string | string[];
   }>;
 }) {
   const parameters = await searchParams;
@@ -318,99 +344,108 @@ export default async function Home({
     : parameters.network;
   const network = parseExplorerNetwork(requestedNetwork);
 
-  const [summary, coreStatus, emission, networkOverview, miningOverview] = await Promise.all([
-    fetchExplorerApi<{
-      chain: {
-        indexedHeight: number | null;
-      };
-      recentBlocks: Array<{
-        hash: string;
-        height: number;
-        time: string;
-        tx_count: number;
-        size: number;
-        weight: number;
-        difficulty: number;
-      }>;
-      recentTransactions: Array<{
-        txid: string;
-        block_height: number;
-        block_time: string;
-        block_index: number;
-        coinbase: boolean;
-        inputAddresses: string[];
-        outputAddresses: string[];
-        totalOutputBaseUnits: string;
-      }>;
-    }>(network, "summary"),
+  const requestedSearch = Array.isArray(parameters.q) ? parameters.q[0] : parameters.q;
+  const searchQuery = requestedSearch?.trim() ?? "";
+  const searchQueryTooLong = searchQuery.length > 128;
 
-    fetchExplorerApi<{
-      mining: {
-        difficulty: number;
-        networkHashPerSecond: number;
-      };
-    }>(network, "core/status"),
-
-    fetchExplorerApi<{
-      totals: {
-        actualIssuedExcludingGenesisBaseUnits: string;
-      };
-      current: {
-        subsidyBaseUnits: string;
-      } | null;
-      history: Array<{
-        height: number;
-        hash: string;
-        time: string;
-        subsidy_base_units: string;
-      }>;
-    }>(network, "emission?limit=10"),
-
-    fetchExplorerApi<{
-      peers: {
-        reportedCount: number;
-        publicCount: number;
-      };
-      discovered: {
-        reportedCount: number;
-        publicCount: number;
-      };
-      distributions: {
-        peerVersions: Array<{
-          subversion: string;
-          count: number;
+  const [summary, coreStatus, emission, networkOverview, miningOverview, searchResult] =
+    await Promise.all([
+      fetchExplorerApi<{
+        chain: {
+          indexedHeight: number | null;
+        };
+        recentBlocks: Array<{
+          hash: string;
+          height: number;
+          time: string;
+          tx_count: number;
+          size: number;
+          weight: number;
+          difficulty: number;
         }>;
-        discoveredNetworks: Array<{
-          network: string;
-          count: number;
+        recentTransactions: Array<{
+          txid: string;
+          block_height: number;
+          block_time: string;
+          block_index: number;
+          coinbase: boolean;
+          inputAddresses: string[];
+          outputAddresses: string[];
+          totalOutputBaseUnits: string;
         }>;
-      };
-      geolocation: {
-        providerConfigured: boolean;
-        eligibleAddressCount: number;
-      };
-    }>(network, "network"),
+      }>(network, "summary"),
 
-    fetchExplorerApi<{
-      window: {
-        requestedBlocks: number;
-        actualBlocks: number;
-      };
-      summary: {
-        averageDifficulty: number | null;
-        averageBlockIntervalSeconds: number | null;
-        totalFeesBaseUnits: string;
-        totalSubsidyBaseUnits: string;
-        totalTransactions: number;
-      };
-      payoutGroups: Array<{
-        attribution: "pseudonymous" | "unidentified";
-        payoutAddress: string | null;
-        blocks: number;
-        sharePercent: number;
-      }>;
-    }>(network, "mining?window=144"),
-  ]);
+      fetchExplorerApi<{
+        mining: {
+          difficulty: number;
+          networkHashPerSecond: number;
+        };
+      }>(network, "core/status"),
+
+      fetchExplorerApi<{
+        totals: {
+          actualIssuedExcludingGenesisBaseUnits: string;
+        };
+        current: {
+          subsidyBaseUnits: string;
+        } | null;
+        history: Array<{
+          height: number;
+          hash: string;
+          time: string;
+          subsidy_base_units: string;
+        }>;
+      }>(network, "emission?limit=10"),
+
+      fetchExplorerApi<{
+        peers: {
+          reportedCount: number;
+          publicCount: number;
+        };
+        discovered: {
+          reportedCount: number;
+          publicCount: number;
+        };
+        distributions: {
+          peerVersions: Array<{
+            subversion: string;
+            count: number;
+          }>;
+          discoveredNetworks: Array<{
+            network: string;
+            count: number;
+          }>;
+        };
+        geolocation: {
+          providerConfigured: boolean;
+          eligibleAddressCount: number;
+        };
+      }>(network, "network"),
+
+      fetchExplorerApi<{
+        window: {
+          requestedBlocks: number;
+          actualBlocks: number;
+        };
+        summary: {
+          averageDifficulty: number | null;
+          averageBlockIntervalSeconds: number | null;
+          totalFeesBaseUnits: string;
+          totalSubsidyBaseUnits: string;
+          totalTransactions: number;
+        };
+        payoutGroups: Array<{
+          attribution: "pseudonymous" | "unidentified";
+          payoutAddress: string | null;
+          blocks: number;
+          sharePercent: number;
+        }>;
+      }>(network, "mining?window=144"),
+
+      searchQuery.length > 0 && !searchQueryTooLong
+        ? fetchExplorerApi<SearchResponse>(network, `search?q=${encodeURIComponent(searchQuery)}`)
+        : Promise.resolve(null),
+    ]);
 
   const metricValues = [
     summary?.chain.indexedHeight === null || summary?.chain.indexedHeight === undefined
@@ -502,8 +537,11 @@ export default async function Home({
 
             <form
               action="/"
+              method="get"
               className="mx-auto mt-7 flex max-w-[800px] items-center overflow-hidden rounded-[18px] border border-[#8e6726] bg-[#0d0f0f]/95 shadow-[0_14px_55px_rgba(0,0,0,0.42)] focus-within:border-[#d2a03c]"
             >
+              <input type="hidden" name="network" value={network} />
+
               <div className="pl-5 text-[#a5a5a2]">
                 <SearchIcon />
               </div>
@@ -511,6 +549,7 @@ export default async function Home({
               <input
                 type="search"
                 name="q"
+                defaultValue={searchQuery}
                 aria-label="Search Mercatura Explorer"
                 placeholder="Search block, transaction, address or hash"
                 className="min-w-0 flex-1 bg-transparent px-4 py-[17px] text-sm text-white outline-none placeholder:text-[#858582] sm:text-[15px]"
@@ -524,6 +563,91 @@ export default async function Home({
                 <SearchIcon />
               </button>
             </form>
+
+            {searchQuery.length > 0 ? (
+              <div className="mx-auto mt-3 max-w-[800px] text-left">
+                {searchQueryTooLong ? (
+                  <div className="rounded-lg border border-[#5c4520] bg-[#11120f]/95 px-4 py-3 text-xs text-[#c9a35b]">
+                    Search query must be 128 characters or fewer.
+                  </div>
+                ) : searchResult === null ? (
+                  <div className="rounded-lg border border-[#34352f] bg-[#101211]/95 px-4 py-3 text-xs text-[#92938f]">
+                    {network === "mainnet" ? "Mainnet" : "Testnet"} search is unavailable.
+                  </div>
+                ) : searchResult.matches.length === 0 ? (
+                  <div className="rounded-lg border border-[#34352f] bg-[#101211]/95 px-4 py-3 text-xs text-[#92938f]">
+                    No results found for{" "}
+                    <span className="font-mono text-[#c5a45e]">{searchResult.query}</span>.
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-lg border border-[#654a20] bg-[#0d0f0f]/95 shadow-[0_12px_32px_rgba(0,0,0,0.3)]">
+                    {searchResult.matches.map((match) => {
+                      if (match.type === "block") {
+                        return (
+                          <div
+                            key={`block:${match.hash}`}
+                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 last:border-0"
+                          >
+                            <span className="w-20 shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
+                              Block
+                            </span>
+
+                            <span className="text-xs font-medium text-white">
+                              #{match.height.toLocaleString("en-US")}
+                            </span>
+
+                            <span className="min-w-0 truncate font-mono text-xs text-[#8f918d]">
+                              {match.hash}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      if (match.type === "transaction") {
+                        return (
+                          <div
+                            key={`transaction:${match.txid}`}
+                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 last:border-0"
+                          >
+                            <span className="w-20 shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
+                              Transaction
+                            </span>
+
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs text-[#c5a45e]">
+                              {match.txid}
+                            </span>
+
+                            <span className="shrink-0 text-xs text-[#858783]">
+                              Block #{match.blockHeight.toLocaleString("en-US")}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={`address:${match.address}`}
+                          className="grid gap-2 border-b border-[#292923] px-4 py-3 last:border-0 sm:grid-cols-[80px_1fr_auto]"
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
+                            Address
+                          </span>
+
+                          <span className="min-w-0 truncate font-mono text-xs text-[#c5a45e]">
+                            {match.address}
+                          </span>
+
+                          <span className="text-xs text-[#858783]">
+                            {formatMca(match.balanceBaseUnits)} ·{" "}
+                            {Number(match.utxoCount).toLocaleString("en-US")} UTXOs
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div className="relative z-10 mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
