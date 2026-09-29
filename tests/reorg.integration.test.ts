@@ -37,6 +37,38 @@ async function readCounts(db: ExplorerDatabase) {
   };
 }
 
+async function readDerivedState(db: ExplorerDatabase) {
+  const [utxos, addresses] = await Promise.all([
+    db
+      .selectFrom("active_utxos")
+      .select([
+        sql<string>`COUNT(*)::text`.as("utxo_count"),
+        sql<string>`COALESCE(SUM(value_base_units), 0)::text`.as("utxo_total_base_units"),
+      ])
+      .executeTakeFirstOrThrow(),
+    db
+      .selectFrom("active_address_balances")
+      .select([
+        sql<string>`COUNT(*)::text`.as("address_count"),
+        sql<string>`COALESCE(SUM(balance_base_units), 0)::text`.as("balance_total_base_units"),
+        sql<string>`COALESCE(SUM(utxo_count), 0)::text`.as("address_utxo_count"),
+        sql<string>`COUNT(*) FILTER (
+          WHERE balance_base_units = 0
+        )::text`.as("zero_balance_addresses"),
+      ])
+      .executeTakeFirstOrThrow(),
+  ]);
+
+  return {
+    utxos: Number(utxos.utxo_count),
+    utxoTotalBaseUnits: utxos.utxo_total_base_units,
+    addresses: Number(addresses.address_count),
+    addressBalanceTotalBaseUnits: addresses.balance_total_base_units,
+    addressUtxoCount: Number(addresses.address_utxo_count),
+    zeroBalanceAddresses: Number(addresses.zero_balance_addresses),
+  };
+}
+
 describe.runIf(integrationEnabled)("Mercatura reorg integration", () => {
   it("recovers automatically from a synthetic three-block fork", async () => {
     const db = createDatabase();
@@ -116,6 +148,13 @@ describe.runIf(integrationEnabled)("Mercatura reorg integration", () => {
       expect(residue).toHaveLength(0);
 
       const originalCounts = await readCounts(db);
+      const originalDerivedState = await readDerivedState(db);
+
+      expect(originalDerivedState.addressBalanceTotalBaseUnits).toBe(
+        originalDerivedState.utxoTotalBaseUnits
+      );
+      expect(originalDerivedState.addressUtxoCount).toBe(originalDerivedState.utxos);
+      expect(originalDerivedState.zeroBalanceAddresses).toBeGreaterThan(0);
 
       const cleanup = async () => {
         await db.transaction().execute(async (trx) => {
@@ -185,6 +224,10 @@ describe.runIf(integrationEnabled)("Mercatura reorg integration", () => {
             .executeTakeFirstOrThrow();
         });
 
+        const divergentDerivedState = await readDerivedState(db);
+
+        expect(divergentDerivedState).not.toEqual(originalDerivedState);
+
         const result = await synchronizeChain(db, rpc, () => undefined);
 
         expect(result.recoveredReorg).toBe(true);
@@ -223,13 +266,19 @@ describe.runIf(integrationEnabled)("Mercatura reorg integration", () => {
         expect(recoveredCounts.transactions).toBe(originalCounts.transactions);
         expect(recoveredCounts.inputs).toBe(originalCounts.inputs);
         expect(recoveredCounts.outputs).toBe(originalCounts.outputs);
+
+        const recoveredDerivedState = await readDerivedState(db);
+
+        expect(recoveredDerivedState).toEqual(originalDerivedState);
       } finally {
         await cleanup();
       }
 
       const finalCounts = await readCounts(db);
+      const finalDerivedState = await readDerivedState(db);
 
       expect(finalCounts).toEqual(originalCounts);
+      expect(finalDerivedState).toEqual(originalDerivedState);
     } finally {
       await db.destroy();
     }
