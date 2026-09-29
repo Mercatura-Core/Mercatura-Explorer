@@ -318,7 +318,7 @@ export default async function Home({
     : parameters.network;
   const network = parseExplorerNetwork(requestedNetwork);
 
-  const [summary, coreStatus, emission] = await Promise.all([
+  const [summary, coreStatus, emission, networkOverview] = await Promise.all([
     fetchExplorerApi<{
       chain: {
         indexedHeight: number | null;
@@ -365,6 +365,31 @@ export default async function Home({
         subsidy_base_units: string;
       }>;
     }>(network, "emission?limit=10"),
+
+    fetchExplorerApi<{
+      peers: {
+        reportedCount: number;
+        publicCount: number;
+      };
+      discovered: {
+        reportedCount: number;
+        publicCount: number;
+      };
+      distributions: {
+        peerVersions: Array<{
+          subversion: string;
+          count: number;
+        }>;
+        discoveredNetworks: Array<{
+          network: string;
+          count: number;
+        }>;
+      };
+      geolocation: {
+        providerConfigured: boolean;
+        eligibleAddressCount: number;
+      };
+    }>(network, "network"),
   ]);
 
   const metricValues = [
@@ -652,18 +677,30 @@ export default async function Home({
             <div className="grid min-h-[215px] md:grid-cols-[180px_1fr]">
               <div className="space-y-3 border-t border-[#27261f] px-5 py-4 md:border-r md:border-t-0">
                 <div>
-                  <p className="text-[11px] text-[#898a87]">Reachable Nodes</p>
-                  <p className="mt-1 text-lg font-medium text-white">—</p>
+                  <p className="text-[11px] text-[#898a87]">Public Peers</p>
+                  <p className="mt-1 text-lg font-medium text-white">
+                    {networkOverview === null
+                      ? "Unavailable"
+                      : networkOverview.peers.publicCount.toLocaleString("en-US")}
+                  </p>
                 </div>
 
                 <div className="border-t border-[#222421] pt-3">
-                  <p className="text-[11px] text-[#898a87]">Observed Networks</p>
-                  <p className="mt-1 text-lg font-medium text-white">—</p>
+                  <p className="text-[11px] text-[#898a87]">Discovered Nodes</p>
+                  <p className="mt-1 text-lg font-medium text-white">
+                    {networkOverview === null
+                      ? "Unavailable"
+                      : networkOverview.discovered.publicCount.toLocaleString("en-US")}
+                  </p>
                 </div>
 
                 <div className="border-t border-[#222421] pt-3">
-                  <p className="text-[11px] text-[#898a87]">Core Versions</p>
-                  <p className="mt-1 text-lg font-medium text-white">—</p>
+                  <p className="text-[11px] text-[#898a87]">Peer Versions</p>
+                  <p className="mt-1 text-lg font-medium text-white">
+                    {networkOverview === null
+                      ? "Unavailable"
+                      : networkOverview.distributions.peerVersions.length.toLocaleString("en-US")}
+                  </p>
                 </div>
               </div>
 
@@ -673,7 +710,11 @@ export default async function Home({
                 </div>
 
                 <p className="absolute bottom-3 right-4 text-[10px] text-[#626460]">
-                  Live discovered-node geography in Phase 17G
+                  {networkOverview?.geolocation.providerConfigured
+                    ? `${networkOverview.geolocation.eligibleAddressCount.toLocaleString(
+                        "en-US"
+                      )} geolocation-eligible addresses`
+                    : "Geographic map awaits geolocation provider"}
                 </p>
               </div>
             </div>
