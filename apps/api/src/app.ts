@@ -2,6 +2,7 @@ import Fastify from "fastify";
 
 import { createDatabase } from "@mercatura/database";
 
+import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerTransactionRoutes } from "./routes/transactions.js";
 
@@ -46,6 +47,7 @@ export function buildApi(options: BuildApiOptions = {}) {
 
   registerBlockRoutes(app, database);
   registerTransactionRoutes(app, database);
+  registerAddressRoutes(app, database);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {
