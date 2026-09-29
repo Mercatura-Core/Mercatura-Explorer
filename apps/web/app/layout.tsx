@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 
+import { SiteHeader } from "../components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mercatura Explorer",
-  description: "Mercatura-native blockchain explorer",
+  title: {
+    default: "Mercatura Explorer",
+    template: "%s | Mercatura Explorer",
+  },
+  description:
+    "Mercatura-native blockchain, mining, network, emission, and post-quantum analytics.",
 };
 
 export default function RootLayout({
@@ -14,7 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
