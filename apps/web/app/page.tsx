@@ -318,7 +318,7 @@ export default async function Home({
     : parameters.network;
   const network = parseExplorerNetwork(requestedNetwork);
 
-  const [summary, coreStatus, emission, networkOverview] = await Promise.all([
+  const [summary, coreStatus, emission, networkOverview, miningOverview] = await Promise.all([
     fetchExplorerApi<{
       chain: {
         indexedHeight: number | null;
@@ -390,6 +390,26 @@ export default async function Home({
         eligibleAddressCount: number;
       };
     }>(network, "network"),
+
+    fetchExplorerApi<{
+      window: {
+        requestedBlocks: number;
+        actualBlocks: number;
+      };
+      summary: {
+        averageDifficulty: number | null;
+        averageBlockIntervalSeconds: number | null;
+        totalFeesBaseUnits: string;
+        totalSubsidyBaseUnits: string;
+        totalTransactions: number;
+      };
+      payoutGroups: Array<{
+        attribution: "pseudonymous" | "unidentified";
+        payoutAddress: string | null;
+        blocks: number;
+        sharePercent: number;
+      }>;
+    }>(network, "mining?window=144"),
   ]);
 
   const metricValues = [
@@ -404,6 +424,50 @@ export default async function Home({
 
   const latestBlocks = summary?.recentBlocks.slice(0, 5) ?? [];
   const recentTransactions = summary?.recentTransactions.slice(0, 5) ?? [];
+
+  const miningPalette = ["#e5b24c", "#b78a34", "#777a77", "#4e514f"];
+  const rawMiningGroups = miningOverview?.payoutGroups ?? [];
+
+  const miningGroups = rawMiningGroups.slice(0, 3).map((group, index) => ({
+    key: group.payoutAddress ?? "unidentified",
+    label:
+      group.attribution === "unidentified" || group.payoutAddress === null
+        ? "Unidentified miner"
+        : shortenAddress(group.payoutAddress),
+    title: group.payoutAddress ?? "Unidentified miner",
+    blocks: group.blocks,
+    sharePercent: group.sharePercent,
+    color: miningPalette[index]!,
+  }));
+
+  if (rawMiningGroups.length > 3) {
+    const remaining = rawMiningGroups.slice(3);
+
+    miningGroups.push({
+      key: "other-observed-miners",
+      label: "Other observed miners",
+      title: "Other observed miners",
+      blocks: remaining.reduce((total, group) => total + group.blocks, 0),
+      sharePercent: remaining.reduce((total, group) => total + group.sharePercent, 0),
+      color: miningPalette[3]!,
+    });
+  }
+
+  let miningCursor = 0;
+
+  const miningSegments = miningGroups.map((group) => {
+    const start = miningCursor;
+    const end = start + (group.sharePercent / 100) * 360;
+
+    miningCursor = end;
+
+    return `${group.color} ${start}deg ${end}deg`;
+  });
+
+  const miningDonutBackground =
+    miningSegments.length === 0
+      ? "conic-gradient(#2b2d2b 0deg 360deg)"
+      : `conic-gradient(${miningSegments.join(", ")})`;
 
   const subsidyByBlockHash = new Map(
     (emission?.history ?? []).map((row) => [row.hash, row.subsidy_base_units])
@@ -727,9 +791,7 @@ export default async function Home({
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg text-[#dca63c]">⚒</span>
-                <h2 className="text-[15px] font-semibold text-[#efefec]">
-                  Mining Pool Distribution
-                </h2>
+                <h2 className="text-[15px] font-semibold text-[#efefec]">Mining Distribution</h2>
               </div>
 
               <Link
@@ -742,36 +804,60 @@ export default async function Home({
             </div>
 
             <div className="grid min-h-[215px] items-center gap-5 border-t border-[#25251f] px-5 py-5 sm:grid-cols-[190px_1fr]">
-              <div className="mx-auto">
-                <div className="relative h-36 w-36 rounded-full bg-[conic-gradient(#e5b24c_0deg_103deg,#b78a34_103deg_183deg,#777a77_183deg_246deg,#4e514f_246deg_300deg,#b8b9b5_300deg_360deg)]">
+              <div className="mx-auto text-center">
+                <div
+                  className="relative h-36 w-36 rounded-full"
+                  style={{ background: miningDonutBackground }}
+                >
                   <div className="absolute inset-[22px] flex flex-col items-center justify-center rounded-full bg-[#0a0b0b]">
-                    <span className="text-lg font-medium text-white">—</span>
-                    <span className="text-[10px] text-[#777975]">Total Hashrate</span>
+                    <span className="max-w-[90px] text-sm font-medium leading-tight text-white">
+                      {formatHashrate(coreStatus?.mining.networkHashPerSecond)}
+                    </span>
+                    <span className="mt-1 text-[10px] text-[#777975]">Est. Hashrate</span>
                   </div>
                 </div>
+
+                <p className="mt-3 text-[10px] text-[#686a67]">
+                  {miningOverview === null
+                    ? "Mining data unavailable"
+                    : `Observed block production · ${miningOverview.window.actualBlocks.toLocaleString(
+                        "en-US"
+                      )} blocks`}
+                </p>
               </div>
 
               <div className="space-y-3">
-                {[
-                  ["#e5b24c", "Identified pools"],
-                  ["#b78a34", "Identified solo miners"],
-                  ["#777a77", "Pseudonymous miners"],
-                  ["#4e514f", "Unidentified miners"],
-                ].map(([color, label]) => (
-                  <div
-                    key={label}
-                    className="flex items-center border-b border-[#202220] pb-2.5 last:border-0"
-                  >
-                    <span
-                      className="mr-3 h-3 w-3 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
+                {miningGroups.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-[#777975]">
+                    {network === "mainnet" ? "Mainnet" : "Testnet"} mining data is unavailable.
+                  </p>
+                ) : (
+                  miningGroups.map((group) => (
+                    <div
+                      key={group.key}
+                      className="flex items-center border-b border-[#202220] pb-2.5 last:border-0"
+                    >
+                      <span
+                        className="mr-3 h-3 w-3 rounded-full"
+                        style={{ backgroundColor: group.color }}
+                      />
 
-                    <span className="flex-1 text-xs text-[#c0c0bd]">{label}</span>
+                      <span
+                        className="min-w-0 flex-1 truncate text-xs text-[#c0c0bd]"
+                        title={group.title}
+                      >
+                        {group.label}
+                      </span>
 
-                    <span className="text-xs text-[#777975]">—</span>
-                  </div>
-                ))}
+                      <span className="ml-3 text-xs text-[#d8a33a]">
+                        {new Intl.NumberFormat("en-US", {
+                          maximumFractionDigits: 1,
+                        }).format(group.sharePercent)}
+                        %
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </article>
