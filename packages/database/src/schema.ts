@@ -41,6 +41,7 @@ export interface TransactionInputsTable {
   vin: number;
   prev_txid: string | null;
   prev_vout: number | null;
+  resolved_prev_transaction_id: Int8 | null;
   sequence: Int8;
   coinbase: string | null;
   script_sig_asm: string | null;
