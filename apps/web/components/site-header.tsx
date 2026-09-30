@@ -1,15 +1,27 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
+import {
+  DEFAULT_EXPLORER_NETWORK,
+  parseExplorerNetwork,
+  type ExplorerNetwork,
+} from "../lib/explorer-network";
 import { NetworkSelector } from "./network-selector";
 
 const navigation = [
-  { label: "Explorer", href: "/", active: true },
-  { label: "Network", href: "/#network", active: false },
-  { label: "Mining", href: "/#mining", active: false },
-  { label: "Emission", href: "/#emission", active: false },
-  { label: "Statistics", href: "/#statistics", active: false },
+  { label: "Explorer", hash: "", active: true },
+  { label: "Network", hash: "#network", active: false },
+  { label: "Mining", hash: "#mining", active: false },
+  { label: "Emission", hash: "#emission", active: false },
+  { label: "Statistics", hash: "#statistics", active: false },
 ];
+
+function networkHref(network: ExplorerNetwork, hash = ""): string {
+  return `/?network=${network}${hash}`;
+}
 
 function SettingsIcon() {
   return (
@@ -43,10 +55,21 @@ function MoonIcon() {
 }
 
 export function SiteHeader() {
+  const [network, setNetwork] = useState<ExplorerNetwork>(DEFAULT_EXPLORER_NETWORK);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    setNetwork(parseExplorerNetwork(url.searchParams.get("network")));
+  }, []);
+
   return (
     <header className="relative z-30 border-b border-[#3a2b11] bg-[#070807]/98">
       <div className="mx-auto flex min-h-[72px] max-w-[1540px] flex-wrap items-center px-5 sm:px-8">
-        <Link href="/" aria-label="Mercatura Explorer home" className="flex items-center gap-3">
+        <Link
+          href={networkHref(network)}
+          aria-label="Mercatura Explorer home"
+          className="flex items-center gap-3"
+        >
           <Image
             src="/mercatura-logo.webp"
             alt=""
@@ -75,7 +98,7 @@ export function SiteHeader() {
           {navigation.map((item) => (
             <Link
               key={item.label}
-              href={item.href}
+              href={networkHref(network, item.hash)}
               className={[
                 "relative whitespace-nowrap px-2 py-5 text-sm transition",
                 item.active ? "font-medium text-[#e5b348]" : "text-[#a4a4a4] hover:text-white",
