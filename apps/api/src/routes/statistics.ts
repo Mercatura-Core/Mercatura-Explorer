@@ -7,6 +7,30 @@ type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
 const PQ_SCRIPT_TYPE = "witness_v2_mercatura_pq";
 
+type StatisticsActivityRange = "30d" | "90d" | "180d" | "365d" | "1095d" | "all";
+
+const STATISTICS_ACTIVITY_DAYS = {
+  "30d": 30,
+  "90d": 90,
+  "180d": 180,
+  "365d": 365,
+  "1095d": 1095,
+} as const;
+
+function parseStatisticsActivityRange(value: string | undefined): StatisticsActivityRange {
+  switch (value) {
+    case "90d":
+    case "180d":
+    case "365d":
+    case "1095d":
+    case "all":
+      return value;
+
+    default:
+      return "30d";
+  }
+}
+
 interface BlockSummaryRow {
   active_blocks: string;
   transaction_count: string;
@@ -54,6 +78,11 @@ interface PqUtxoRow {
   value_base_units: string;
 }
 
+interface DailyTransactionsRow {
+  day: string;
+  non_coinbase_transactions: string;
+}
+
 function firstRow<T>(rows: T[], name: string): T {
   const row = rows[0];
 
@@ -65,7 +94,11 @@ function firstRow<T>(rows: T[], name: string): T {
 }
 
 export function registerStatisticsRoutes(app: FastifyInstance, database: ExplorerDatabase): void {
-  app.get("/api/v1/statistics", async () => {
+  app.get<{ Querystring: { range?: string } }>("/api/v1/statistics", async (request) => {
+    const activityRange = parseStatisticsActivityRange(request.query.range);
+
+    const activityDays = activityRange === "all" ? null : STATISTICS_ACTIVITY_DAYS[activityRange];
+
     const [
       state,
       blockResult,
@@ -76,6 +109,7 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
       outputDistributionResult,
       pqAuthorizationResult,
       pqUtxoResult,
+      dailyTransactionsResult,
     ] = await Promise.all([
       database
         .selectFrom("chain_state")
@@ -209,6 +243,113 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
         FROM active_utxos
         WHERE script_type = ${PQ_SCRIPT_TYPE}
       `.execute(database),
+
+      sql<DailyTransactionsRow>`
+        WITH bounds AS (
+          SELECT
+            MIN(
+              (
+                to_timestamp(block.time::double precision)
+                AT TIME ZONE 'UTC'
+              )::date
+            ) AS first_day,
+
+            MAX(
+              (
+                to_timestamp(block.time::double precision)
+                AT TIME ZONE 'UTC'
+              )::date
+            ) AS last_day
+          FROM blocks AS block
+          WHERE block.active = TRUE
+        ),
+
+        activity_window AS (
+          SELECT
+            first_day,
+            last_day,
+
+            CASE
+              WHEN last_day IS NULL THEN NULL
+
+              WHEN ${activityDays}::integer IS NULL
+                THEN first_day
+
+              ELSE GREATEST(
+                first_day,
+                last_day
+                  - (
+                      (${activityDays}::integer - 1)
+                      * INTERVAL '1 day'
+                    )
+              )::date
+            END AS start_day
+          FROM bounds
+        ),
+
+        calendar AS (
+          SELECT
+            generate_series(
+              activity_window.start_day,
+              activity_window.last_day,
+              INTERVAL '1 day'
+            )::date AS day
+          FROM activity_window
+          WHERE activity_window.start_day IS NOT NULL
+            AND activity_window.last_day IS NOT NULL
+        ),
+
+        daily_counts AS (
+          SELECT
+            (
+              to_timestamp(block.time::double precision)
+              AT TIME ZONE 'UTC'
+            )::date AS day,
+
+            COUNT(*) FILTER (
+              WHERE tx.block_index > 0
+            )::text AS non_coinbase_transactions
+          FROM blocks AS block
+
+          JOIN transactions AS tx
+            ON tx.block_hash = block.hash
+
+          CROSS JOIN activity_window
+
+          WHERE block.active = TRUE
+            AND activity_window.start_day IS NOT NULL
+            AND block.time >= EXTRACT(
+              EPOCH FROM (
+                activity_window.start_day::timestamp
+                AT TIME ZONE 'UTC'
+              )
+            )::bigint
+
+            AND block.time < EXTRACT(
+              EPOCH FROM (
+                (activity_window.last_day + 1)::timestamp
+                AT TIME ZONE 'UTC'
+              )
+            )::bigint
+
+          GROUP BY 1
+        )
+
+        SELECT
+          TO_CHAR(calendar.day, 'YYYY-MM-DD') AS day,
+
+          COALESCE(
+            daily_counts.non_coinbase_transactions,
+            '0'
+          )::text AS non_coinbase_transactions
+
+        FROM calendar
+
+        LEFT JOIN daily_counts
+          ON daily_counts.day = calendar.day
+
+        ORDER BY calendar.day ASC
+      `.execute(database),
     ]);
 
     const blocks = firstRow(blockResult.rows, "Block statistics");
@@ -275,6 +416,15 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
         spendingTransactionCount: pqAuthorization.transaction_count,
         activeUtxoCount: pqUtxos.utxo_count,
         activeUtxoValueBaseUnits: pqUtxos.value_base_units,
+      },
+
+      activity: {
+        range: activityRange,
+
+        dailyTransactions: dailyTransactionsResult.rows.map((row) => ({
+          date: row.day,
+          nonCoinbaseTransactions: row.non_coinbase_transactions,
+        })),
       },
 
       outputTypes: outputDistributionResult.rows.map((row) => ({

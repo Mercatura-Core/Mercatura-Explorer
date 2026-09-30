@@ -978,10 +978,6 @@ export default async function Home({
             </div>
           </article>
         </section>
-
-        <div className="sr-only">
-          <span id="statistics">Statistics</span>
-        </div>
       </div>
     </main>
   );

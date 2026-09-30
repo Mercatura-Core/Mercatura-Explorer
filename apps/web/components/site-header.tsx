@@ -17,7 +17,7 @@ const navigation = [
   { label: "Network", href: "/network" },
   { label: "Mining", href: "/mining" },
   { label: "Emission", href: "/emission" },
-  { label: "Statistics", href: "/#statistics" },
+  { label: "Statistics", href: "/statistics" },
   { label: "PQ", href: "/pq" },
 ];
 
