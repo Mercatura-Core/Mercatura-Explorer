@@ -589,9 +589,10 @@ export default async function Home({
                     {searchResult.matches.map((match) => {
                       if (match.type === "block") {
                         return (
-                          <div
+                          <Link
                             key={`block:${match.hash}`}
-                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 last:border-0"
+                            href={`/block/${match.hash}?network=${network}`}
+                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 transition hover:bg-[#151611] last:border-0"
                           >
                             <span className="w-20 shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
                               Block
@@ -604,7 +605,7 @@ export default async function Home({
                             <span className="min-w-0 truncate font-mono text-xs text-[#8f918d]">
                               {match.hash}
                             </span>
-                          </div>
+                          </Link>
                         );
                       }
 
@@ -724,16 +725,25 @@ export default async function Home({
                     latestBlocks.map((block) => (
                       <tr key={block.hash}>
                         <td className="border-b border-[#242625] px-3 py-3">
-                          <div className="flex items-center gap-2">
+                          <Link
+                            href={`/block/${block.hash}?network=${network}`}
+                            title={block.hash}
+                            className="flex items-center gap-2"
+                          >
                             <span className="text-[#d8a33a]">◇</span>
-                            <span className="font-mono text-xs text-[#d8a33a]">
+                            <span className="font-mono text-xs text-[#d8a33a] hover:text-[#edbe5b]">
                               {block.hash.slice(0, 8)}…
                             </span>
-                          </div>
+                          </Link>
                         </td>
 
-                        <td className="border-b border-[#242625] px-3 py-3 text-xs font-medium text-[#d8a33a]">
-                          {block.height.toLocaleString("en-US")}
+                        <td className="border-b border-[#242625] px-3 py-3 text-xs font-medium">
+                          <Link
+                            href={`/block/${block.height}?network=${network}`}
+                            className="text-[#d8a33a] hover:text-[#edbe5b]"
+                          >
+                            {block.height.toLocaleString("en-US")}
+                          </Link>
                         </td>
 
                         <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#a2a3a0]">
