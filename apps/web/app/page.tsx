@@ -611,9 +611,10 @@ export default async function Home({
 
                       if (match.type === "transaction") {
                         return (
-                          <div
+                          <Link
                             key={`transaction:${match.txid}`}
-                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 last:border-0"
+                            href={`/tx/${match.txid}?network=${network}`}
+                            className="flex items-center gap-4 border-b border-[#292923] px-4 py-3 transition hover:bg-[#151611] last:border-0"
                           >
                             <span className="w-20 shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
                               Transaction
@@ -626,14 +627,15 @@ export default async function Home({
                             <span className="shrink-0 text-xs text-[#858783]">
                               Block #{match.blockHeight.toLocaleString("en-US")}
                             </span>
-                          </div>
+                          </Link>
                         );
                       }
 
                       return (
-                        <div
+                        <Link
                           key={`address:${match.address}`}
-                          className="grid gap-2 border-b border-[#292923] px-4 py-3 last:border-0 sm:grid-cols-[80px_1fr_auto]"
+                          href={`/address/${encodeURIComponent(match.address)}?network=${network}`}
+                          className="grid gap-2 border-b border-[#292923] px-4 py-3 transition hover:bg-[#151611] last:border-0 sm:grid-cols-[80px_1fr_auto]"
                         >
                           <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#d8a33a]">
                             Address
@@ -647,7 +649,7 @@ export default async function Home({
                             {formatMca(match.balanceBaseUnits)} ·{" "}
                             {Number(match.utxoCount).toLocaleString("en-US")} UTXOs
                           </span>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>
@@ -809,15 +811,16 @@ export default async function Home({
                     recentTransactions.map((transaction) => (
                       <tr key={transaction.txid}>
                         <td className="border-b border-[#242625] px-3 py-3">
-                          <div className="flex items-center gap-2">
+                          <Link
+                            href={`/tx/${transaction.txid}?network=${network}`}
+                            title={transaction.txid}
+                            className="flex items-center gap-2"
+                          >
                             <span className="text-[#d8a33a]">⇄</span>
-                            <span
-                              className="font-mono text-xs text-[#d8a33a]"
-                              title={transaction.txid}
-                            >
+                            <span className="font-mono text-xs text-[#d8a33a] hover:text-[#edbe5b]">
                               {transaction.txid.slice(0, 10)}…
                             </span>
-                          </div>
+                          </Link>
                         </td>
 
                         <td
@@ -828,14 +831,32 @@ export default async function Home({
                               : transaction.inputAddresses.join(", ")
                           }
                         >
-                          {formatTransactionParty(transaction.inputAddresses, transaction.coinbase)}
+                          {!transaction.coinbase && transaction.inputAddresses.length === 1 ? (
+                            <Link
+                              href={`/address/${encodeURIComponent(transaction.inputAddresses[0]!)}?network=${network}`}
+                              className="hover:text-[#edbe5b]"
+                            >
+                              {shortenAddress(transaction.inputAddresses[0]!)}
+                            </Link>
+                          ) : (
+                            formatTransactionParty(transaction.inputAddresses, transaction.coinbase)
+                          )}
                         </td>
 
                         <td
                           className="border-b border-[#242625] px-3 py-3 font-mono text-xs text-[#c3a45f]"
                           title={transaction.outputAddresses.join(", ")}
                         >
-                          {formatTransactionParty(transaction.outputAddresses)}
+                          {transaction.outputAddresses.length === 1 ? (
+                            <Link
+                              href={`/address/${encodeURIComponent(transaction.outputAddresses[0]!)}?network=${network}`}
+                              className="hover:text-[#edbe5b]"
+                            >
+                              {shortenAddress(transaction.outputAddresses[0]!)}
+                            </Link>
+                          ) : (
+                            formatTransactionParty(transaction.outputAddresses)
+                          )}
                         </td>
 
                         <td

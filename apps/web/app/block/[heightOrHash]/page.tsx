@@ -332,11 +332,14 @@ export default async function BlockDetailPage({
                 <tr key={transaction.txid} className="border-t border-[#24251f]">
                   <td className="px-5 py-3 text-xs text-[#8d8e8a]">{transaction.block_index}</td>
 
-                  <td
-                    className="px-5 py-3 font-mono text-xs text-[#d8a33a]"
-                    title={transaction.txid}
-                  >
-                    {shortHash(transaction.txid)}
+                  <td className="px-5 py-3 font-mono text-xs">
+                    <Link
+                      href={`/tx/${transaction.txid}?network=${network}`}
+                      title={transaction.txid}
+                      className="text-[#d8a33a] hover:text-[#edbe5b]"
+                    >
+                      {shortHash(transaction.txid)}
+                    </Link>
                   </td>
 
                   <td className="px-5 py-3 text-xs text-[#c4c5c1]">

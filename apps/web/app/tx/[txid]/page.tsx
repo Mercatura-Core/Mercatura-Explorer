@@ -366,9 +366,16 @@ export default async function TransactionDetailPage({
                     <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">
                       Previous Address
                     </p>
-                    <p className="mt-2 break-all font-mono text-xs text-[#c7c8c4]">
-                      {input.prev_address ?? "Unavailable"}
-                    </p>
+                    {input.prev_address === null ? (
+                      <p className="mt-2 text-xs text-[#858783]">Unavailable</p>
+                    ) : (
+                      <Link
+                        href={`/address/${encodeURIComponent(input.prev_address)}?network=${network}`}
+                        className="mt-2 block break-all font-mono text-xs text-[#c7c8c4] hover:text-[#edbe5b]"
+                      >
+                        {input.prev_address}
+                      </Link>
+                    )}
                     <p className="mt-2 text-xs text-[#8f918d]">
                       {formatScriptType(input.prev_script_type)}
                     </p>
@@ -405,9 +412,16 @@ export default async function TransactionDetailPage({
 
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">Address</p>
-                  <p className="mt-2 break-all font-mono text-xs text-[#c7c8c4]">
-                    {output.address ?? "No address"}
-                  </p>
+                  {output.address === null ? (
+                    <p className="mt-2 text-xs text-[#858783]">No address</p>
+                  ) : (
+                    <Link
+                      href={`/address/${encodeURIComponent(output.address)}?network=${network}`}
+                      className="mt-2 block break-all font-mono text-xs text-[#c7c8c4] hover:text-[#edbe5b]"
+                    >
+                      {output.address}
+                    </Link>
+                  )}
                   <p className="mt-2 text-xs text-[#8f918d]">
                     {formatScriptType(output.script_type)}
                   </p>
