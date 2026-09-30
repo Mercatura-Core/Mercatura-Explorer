@@ -980,7 +980,6 @@ export default async function Home({
         </section>
 
         <div className="sr-only">
-          <span id="emission">Emission</span>
           <span id="statistics">Statistics</span>
         </div>
       </div>
