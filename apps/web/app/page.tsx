@@ -236,12 +236,17 @@ function formatDifficulty(value: number | null | undefined): string {
 }
 
 function formatBlockTime(value: string): string {
-  const timestamp = Date.parse(value);
-
-  if (!Number.isFinite(timestamp)) {
+  if (!/^\d+$/.test(value)) {
     return "Unavailable";
   }
 
+  const unixSeconds = Number(value);
+
+  if (!Number.isSafeInteger(unixSeconds) || unixSeconds < 0) {
+    return "Unavailable";
+  }
+
+  const timestamp = unixSeconds * 1000;
   const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
 
   if (seconds < 60) {
