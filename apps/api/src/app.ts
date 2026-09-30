@@ -3,6 +3,10 @@ import Fastify from "fastify";
 import { createDatabase } from "@mercatura/database";
 import { createRpcClient } from "@mercatura/mercatura-rpc";
 
+import {
+  createNetworkGeolocatorFromEnvironment,
+  type NetworkGeolocator,
+} from "./network-geolocation.js";
 import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerCoreStatusRoutes, type CoreStatusRpc } from "./routes/core-status.js";
@@ -20,6 +24,7 @@ export interface BuildApiOptions {
   database?: ExplorerDatabase;
   rpc?: CoreStatusRpc;
   networkRpc?: NetworkRpc;
+  networkGeolocator?: NetworkGeolocator;
   logger?: boolean;
 }
 
@@ -55,6 +60,8 @@ export function buildApi(options: BuildApiOptions = {}) {
 
     return networkRpc;
   };
+
+  const networkGeolocator = options.networkGeolocator ?? createNetworkGeolocatorFromEnvironment();
 
   const app = Fastify({
     logger: options.logger ?? false,
@@ -116,7 +123,7 @@ export function buildApi(options: BuildApiOptions = {}) {
   registerEmissionRoutes(app, database);
   registerMiningRoutes(app, database);
   registerStatisticsRoutes(app, database);
-  registerNetworkRoutes(app, getNetworkRpc);
+  registerNetworkRoutes(app, getNetworkRpc, networkGeolocator);
 
   if (ownsDatabase) {
     app.addHook("onClose", async () => {

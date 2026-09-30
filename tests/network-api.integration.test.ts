@@ -54,7 +54,9 @@ describe.runIf(integrationEnabled)("Mercatura Network API integration", () => {
         >;
         geolocation: {
           providerConfigured: boolean;
+          provider: string | null;
           eligibleAddressCount: number;
+          locatedAddressCount: number;
         };
       }>();
 
@@ -72,9 +74,21 @@ describe.runIf(integrationEnabled)("Mercatura Network API integration", () => {
 
       expect(body.node.protocolVersion).toBeGreaterThan(0);
 
-      expect(body.geolocation.providerConfigured).toBe(false);
+      if (process.env.MERCATURA_GEOIP_CITY_DB) {
+        expect(body.geolocation.providerConfigured).toBe(true);
+        expect(body.geolocation.provider).toBe("MaxMind City MMDB");
+      } else {
+        expect(body.geolocation.providerConfigured).toBe(false);
+        expect(body.geolocation.provider).toBeNull();
+      }
 
       expect(body.geolocation.eligibleAddressCount).toBeGreaterThanOrEqual(0);
+
+      expect(body.geolocation.locatedAddressCount).toBeGreaterThanOrEqual(0);
+
+      expect(body.geolocation.locatedAddressCount).toBeLessThanOrEqual(
+        body.geolocation.eligibleAddressCount
+      );
     } finally {
       await app.close();
     }

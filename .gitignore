@@ -20,3 +20,4 @@ cache/
 tmp/
 
 *.tsbuildinfo
+apps/web/public/maplibre/

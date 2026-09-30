@@ -1,5 +1,10 @@
 import Link from "next/link";
 
+import {
+  NetworkMap,
+  type NetworkMapLocation,
+  type NetworkMapPoint,
+} from "../../components/network-map";
 import { parseExplorerNetwork } from "../../lib/explorer-network";
 import { fetchExplorerApi } from "../../lib/explorer-server-api";
 import {
@@ -31,7 +36,7 @@ type PublicPeer = {
   syncedBlocks: number;
   mappedAs: number | null;
   geolocationEligible: boolean;
-  location: null;
+  location: NetworkMapLocation | null;
 };
 
 type DiscoveredNode = {
@@ -41,7 +46,7 @@ type DiscoveredNode = {
   lastSeen: number;
   services: number;
   geolocationEligible: boolean;
-  location: null;
+  location: NetworkMapLocation | null;
 };
 
 type NetworkResponse = {
@@ -84,7 +89,15 @@ type NetworkResponse = {
   };
   geolocation: {
     providerConfigured: boolean;
+    provider: string | null;
     eligibleAddressCount: number;
+    locatedAddressCount: number;
+    countries: Array<{
+      countryCode: string | null;
+      countryName: string;
+      count: number;
+    }>;
+    points: NetworkMapPoint[];
   };
 };
 
@@ -146,57 +159,6 @@ function formatRelativeUnixTime(value: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function NetworkMapPlaceholder({
-  providerConfigured,
-  eligibleAddressCount,
-}: {
-  providerConfigured: boolean;
-  eligibleAddressCount: number;
-}) {
-  return (
-    <div className="relative min-h-[340px] overflow-hidden rounded-[8px] border border-[#292a24] bg-[#090b0a]">
-      <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(#20231f_1px,transparent_1px),linear-gradient(90deg,#20231f_1px,transparent_1px)] [background-size:42px_42px]" />
-
-      <svg
-        viewBox="0 0 1000 430"
-        aria-label="Network geolocation map"
-        className="absolute inset-0 h-full w-full"
-      >
-        <g fill="#252825" opacity="0.9">
-          <path d="M95 133 157 92l83 10 54 39-13 45-54 19-39 51-50-14-34-47Z" />
-          <path d="m235 253 43 22 28 77-25 59-31-18-16-69-26-37Z" />
-          <path d="m411 118 58-29 77 12 47 29-10 37-51 18-22 47-46-1-31-34-46-18Z" />
-          <path d="m481 229 50 8 38 59-18 92-42 34-36-50 9-67-25-50Z" />
-          <path d="m594 102 98-25 94 16 112 63-19 50-86-6-45 31-73-16-32-44-62 5-34-35Z" />
-          <path d="m820 300 56 7 31 40-30 41-54-14-19-39Z" />
-        </g>
-
-        <g fill="none" stroke="#6d5225" strokeWidth="1.5" opacity="0.5">
-          <path d="M165 167 Q370 20 650 152" />
-          <path d="M165 167 Q429 373 820 330" />
-          <path d="M470 160 Q665 24 864 171" />
-          <path d="M270 302 Q520 151 755 205" />
-        </g>
-      </svg>
-
-      <div className="absolute inset-x-5 bottom-5 rounded-lg border border-[#3b3423] bg-[#0b0d0c]/95 px-4 py-4">
-        <p className="text-sm font-medium text-[#e2b04a]">
-          {providerConfigured
-            ? "Geolocation provider configured"
-            : "Geolocation provider not configured"}
-        </p>
-
-        <p className="mt-1 text-xs leading-5 text-[#8d8f8a]">
-          {eligibleAddressCount.toLocaleString("en-US")} public IPv4/IPv6 observations are eligible
-          for geographic enrichment.
-          {!providerConfigured &&
-            " Country distribution and map pins are intentionally withheld until a geolocation provider is configured."}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function DistributionBars({
   rows,
   total,
@@ -254,6 +216,9 @@ export default async function NetworkPage({
   const requestedNetwork = Array.isArray(query.network) ? query.network[0] : query.network;
 
   const networkName = parseExplorerNetwork(requestedNetwork);
+
+  const mapStyleUrl =
+    process.env.MERCATURA_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty";
 
   const network = await fetchExplorerApi<NetworkResponse>(networkName, "network");
 
@@ -425,10 +390,39 @@ export default async function NetworkPage({
               </div>
 
               <div className="p-4">
-                <NetworkMapPlaceholder
+                <NetworkMap
+                  points={network.geolocation.points}
                   providerConfigured={network.geolocation.providerConfigured}
                   eligibleAddressCount={network.geolocation.eligibleAddressCount}
+                  styleUrl={mapStyleUrl}
                 />
+
+                <p className="mt-3 text-[10px] leading-4 text-[#666862]">
+                  Node locations are approximate. GeoLite Data created by MaxMind.
+                </p>
+
+                <div className="mt-4 border-t border-[#292820] pt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#b78b35]">
+                    Approximate Country Distribution
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-5 text-[#777975]">
+                    Deduplicated public IPv4/IPv6 endpoints with available geographic data.
+                  </p>
+
+                  <div className="mt-3 overflow-hidden rounded-[8px] border border-[#292a24]">
+                    <DistributionBars
+                      rows={network.geolocation.countries.map((row) => ({
+                        label: row.countryName,
+                        count: row.count,
+                      }))}
+                      total={network.geolocation.countries.reduce(
+                        (total, row) => total + row.count,
+                        0
+                      )}
+                      emptyText="No geolocated public network observations are available."
+                    />
+                  </div>
+                </div>
               </div>
             </article>
           </section>

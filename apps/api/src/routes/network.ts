@@ -4,10 +4,20 @@ import type { FastifyInstance } from "fastify";
 
 import type { MercaturaRpcClient } from "@mercatura/mercatura-rpc";
 
+import type { NetworkGeolocator, NetworkLocation } from "../network-geolocation.js";
+
 export type NetworkRpc = Pick<
   MercaturaRpcClient,
   "getNetworkInfo" | "getPeerInfo" | "getNodeAddresses" | "getAddrManInfo"
 >;
+
+interface NetworkMapPoint extends NetworkLocation {
+  address: string;
+  port: number | null;
+  network: string;
+  connected: boolean;
+  discovered: boolean;
+}
 
 function splitPeerAddress(value: string): {
   address: string;
@@ -143,7 +153,11 @@ function geolocationEligible(network: string, address: string): boolean {
   return (network === "ipv4" && isIP(address) === 4) || (network === "ipv6" && isIP(address) === 6);
 }
 
-export function registerNetworkRoutes(app: FastifyInstance, getRpc: () => NetworkRpc): void {
+export function registerNetworkRoutes(
+  app: FastifyInstance,
+  getRpc: () => NetworkRpc,
+  geolocator: NetworkGeolocator
+): void {
   app.get("/api/v1/network", async () => {
     const rpc = getRpc();
 
@@ -185,7 +199,9 @@ export function registerNetworkRoutes(app: FastifyInstance, getRpc: () => Networ
           syncedBlocks: peer.synced_blocks,
           mappedAs: peer.mapped_as ?? null,
           geolocationEligible: geolocationEligible(peer.network, parsed.address),
-          location: null,
+          location: geolocationEligible(peer.network, parsed.address)
+            ? geolocator.lookup(parsed.address)
+            : null,
         },
       ];
     });
@@ -203,7 +219,9 @@ export function registerNetworkRoutes(app: FastifyInstance, getRpc: () => Networ
           lastSeen: node.time,
           services: node.services,
           geolocationEligible: geolocationEligible(node.network, node.address),
-          location: null,
+          location: geolocationEligible(node.network, node.address)
+            ? geolocator.lookup(node.address)
+            : null,
         },
       ];
     });
@@ -221,6 +239,79 @@ export function registerNetworkRoutes(app: FastifyInstance, getRpc: () => Networ
     for (const node of publicDiscovered) {
       networkCounts.set(node.network, (networkCounts.get(node.network) ?? 0) + 1);
     }
+
+    const mapPointsByEndpoint = new Map<string, NetworkMapPoint>();
+
+    for (const peer of publicPeers) {
+      if (peer.location === null) {
+        continue;
+      }
+
+      const key = `${peer.network}:${peer.address}:${peer.port ?? ""}`;
+
+      mapPointsByEndpoint.set(key, {
+        address: peer.address,
+        port: peer.port,
+        network: peer.network,
+        connected: true,
+        discovered: false,
+        ...peer.location,
+      });
+    }
+
+    for (const node of publicDiscovered) {
+      if (node.location === null) {
+        continue;
+      }
+
+      const key = `${node.network}:${node.address}:${node.port}`;
+      const existing = mapPointsByEndpoint.get(key);
+
+      if (existing !== undefined) {
+        mapPointsByEndpoint.set(key, {
+          ...existing,
+          discovered: true,
+        });
+
+        continue;
+      }
+
+      mapPointsByEndpoint.set(key, {
+        address: node.address,
+        port: node.port,
+        network: node.network,
+        connected: false,
+        discovered: true,
+        ...node.location,
+      });
+    }
+
+    const mapPoints = [...mapPointsByEndpoint.values()];
+
+    const countryCounts = new Map<
+      string,
+      {
+        countryCode: string | null;
+        countryName: string;
+        count: number;
+      }
+    >();
+
+    for (const point of mapPoints) {
+      const countryName = point.countryName ?? "Unknown";
+      const key = point.countryCode ?? `unknown:${countryName}`;
+      const existing = countryCounts.get(key);
+
+      countryCounts.set(key, {
+        countryCode: point.countryCode,
+        countryName,
+        count: (existing?.count ?? 0) + 1,
+      });
+    }
+
+    const countries = [...countryCounts.values()].sort(
+      (left, right) => right.count - left.count || left.countryName.localeCompare(right.countryName)
+    );
 
     return {
       node: {
@@ -264,10 +355,14 @@ export function registerNetworkRoutes(app: FastifyInstance, getRpc: () => Networ
       },
 
       geolocation: {
-        providerConfigured: false,
+        providerConfigured: geolocator.configured,
+        provider: geolocator.provider,
         eligibleAddressCount:
           publicPeers.filter((peer) => peer.geolocationEligible).length +
           publicDiscovered.filter((node) => node.geolocationEligible).length,
+        locatedAddressCount: mapPoints.length,
+        countries,
+        points: mapPoints,
       },
     };
   });

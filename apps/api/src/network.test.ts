@@ -1,7 +1,39 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApi } from "./app.js";
+import type { NetworkGeolocator } from "./network-geolocation.js";
 import type { NetworkRpc } from "./routes/network.js";
+
+const TEST_GEOLOCATOR: NetworkGeolocator = {
+  configured: true,
+  provider: "test-geolocator",
+
+  lookup(address) {
+    if (address === "8.8.8.8") {
+      return {
+        latitude: 37.39,
+        longitude: -122.08,
+        countryCode: "US",
+        countryName: "United States",
+        regionName: "California",
+        cityName: "Mountain View",
+      };
+    }
+
+    if (address === "1.1.1.1") {
+      return {
+        latitude: -33.87,
+        longitude: 151.21,
+        countryCode: "AU",
+        countryName: "Australia",
+        regionName: "New South Wales",
+        cityName: "Sydney",
+      };
+    }
+
+    return null;
+  },
+};
 
 describe("Mercatura Network API", () => {
   it("filters private network addresses from the public response", async () => {
@@ -134,6 +166,13 @@ describe("Mercatura Network API", () => {
             network: "ipv4",
           },
           {
+            time: 95,
+            services: 1,
+            address: "8.8.8.8",
+            port: 27780,
+            network: "ipv4",
+          },
+          {
             time: 90,
             services: 1,
             address: "192.168.1.25",
@@ -161,6 +200,7 @@ describe("Mercatura Network API", () => {
 
     const app = buildApi({
       networkRpc,
+      networkGeolocator: TEST_GEOLOCATOR,
     });
 
     try {
@@ -179,7 +219,7 @@ describe("Mercatura Network API", () => {
             address: string;
             port: number | null;
             geolocationEligible: boolean;
-            location: null;
+            location: unknown;
           }>;
         };
         discovered: {
@@ -189,12 +229,25 @@ describe("Mercatura Network API", () => {
             address: string;
             port: number;
             geolocationEligible: boolean;
-            location: null;
+            location: unknown;
           }>;
         };
         geolocation: {
           providerConfigured: boolean;
+          provider: string | null;
           eligibleAddressCount: number;
+          locatedAddressCount: number;
+          countries: Array<{
+            countryCode: string | null;
+            countryName: string;
+            count: number;
+          }>;
+          points: Array<{
+            address: string;
+            connected: boolean;
+            discovered: boolean;
+            countryCode: string | null;
+          }>;
         };
       }>();
 
@@ -206,23 +259,64 @@ describe("Mercatura Network API", () => {
         address: "8.8.8.8",
         port: 27780,
         geolocationEligible: true,
-        location: null,
+        location: {
+          countryCode: "US",
+          countryName: "United States",
+          cityName: "Mountain View",
+        },
       });
 
-      expect(body.discovered.reportedCount).toBe(2);
-      expect(body.discovered.publicCount).toBe(1);
+      expect(body.discovered.reportedCount).toBe(3);
+      expect(body.discovered.publicCount).toBe(2);
 
       expect(body.discovered.items[0]).toMatchObject({
         address: "1.1.1.1",
         port: 27780,
         geolocationEligible: true,
-        location: null,
+        location: {
+          countryCode: "AU",
+          countryName: "Australia",
+          cityName: "Sydney",
+        },
       });
 
-      expect(body.geolocation).toEqual({
-        providerConfigured: false,
-        eligibleAddressCount: 2,
+      expect(body.geolocation).toMatchObject({
+        providerConfigured: true,
+        provider: "test-geolocator",
+        eligibleAddressCount: 3,
+        locatedAddressCount: 2,
+        countries: [
+          {
+            countryCode: "AU",
+            countryName: "Australia",
+            count: 1,
+          },
+          {
+            countryCode: "US",
+            countryName: "United States",
+            count: 1,
+          },
+        ],
       });
+
+      expect(body.geolocation.points).toHaveLength(2);
+
+      expect(body.geolocation.points).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            address: "8.8.8.8",
+            connected: true,
+            discovered: true,
+            countryCode: "US",
+          }),
+          expect.objectContaining({
+            address: "1.1.1.1",
+            connected: false,
+            discovered: true,
+            countryCode: "AU",
+          }),
+        ])
+      );
 
       expect(response.body).not.toContain("127.0.0.1");
       expect(response.body).not.toContain("10.0.0.5");
