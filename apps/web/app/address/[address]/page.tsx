@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { fetchExplorerApi } from "../../../lib/explorer-server-api";
 import { parseExplorerNetwork, type ExplorerNetwork } from "../../../lib/explorer-network";
+import { formatMercaturaScriptType, isMercaturaPqScriptType } from "../../../lib/mercatura-pq";
 
 const PAGE_SIZE = 20;
 
@@ -160,14 +161,6 @@ function formatInteger(value: string): string {
   }
 
   return BigInt(value).toLocaleString("en-US");
-}
-
-function formatScriptType(type: string): string {
-  if (type === "witness_v2_mercatura_pq") {
-    return "Mercatura PQ · Witness v2";
-  }
-
-  return type.replaceAll("_", " ");
 }
 
 function shortHash(value: string): string {
@@ -503,7 +496,12 @@ export default async function AddressDetailPage({
                     </td>
 
                     <td className="px-5 py-3 text-xs text-[#a5a6a2]">
-                      {formatScriptType(utxo.script_type)}
+                      <span>{formatMercaturaScriptType(utxo.script_type)}</span>
+                      {isMercaturaPqScriptType(utxo.script_type) && (
+                        <span className="ml-2 inline-flex rounded-full border border-[#665020] bg-[#17140c] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[#e3ae43]">
+                          PQ
+                        </span>
+                      )}
                     </td>
 
                     <td className="px-5 py-3 text-xs text-[#8f918d]">

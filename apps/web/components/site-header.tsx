@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
@@ -12,15 +13,28 @@ import {
 import { NetworkSelector } from "./network-selector";
 
 const navigation = [
-  { label: "Explorer", hash: "", active: true },
-  { label: "Network", hash: "#network", active: false },
-  { label: "Mining", hash: "#mining", active: false },
-  { label: "Emission", hash: "#emission", active: false },
-  { label: "Statistics", hash: "#statistics", active: false },
+  { label: "Explorer", href: "/" },
+  { label: "Network", href: "/#network" },
+  { label: "Mining", href: "/#mining" },
+  { label: "Emission", href: "/#emission" },
+  { label: "Statistics", href: "/#statistics" },
+  { label: "PQ", href: "/pq" },
 ];
 
-function networkHref(network: ExplorerNetwork, hash = ""): string {
-  return `/?network=${network}${hash}`;
+function networkHref(network: ExplorerNetwork, href = "/"): string {
+  if (href.startsWith("/#")) {
+    return `/?network=${network}${href.slice(1)}`;
+  }
+
+  return `${href}?network=${network}`;
+}
+
+function isNavigationActive(pathname: string, href: string): boolean {
+  if (href.startsWith("/#")) {
+    return false;
+  }
+
+  return pathname === href;
 }
 
 function SettingsIcon() {
@@ -55,6 +69,7 @@ function MoonIcon() {
 }
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const [network, setNetwork] = useState<ExplorerNetwork>(DEFAULT_EXPLORER_NETWORK);
 
   useEffect(() => {
@@ -98,15 +113,17 @@ export function SiteHeader() {
           {navigation.map((item) => (
             <Link
               key={item.label}
-              href={networkHref(network, item.hash)}
+              href={networkHref(network, item.href)}
               className={[
                 "relative whitespace-nowrap px-2 py-5 text-sm transition",
-                item.active ? "font-medium text-[#e5b348]" : "text-[#a4a4a4] hover:text-white",
+                isNavigationActive(pathname, item.href)
+                  ? "font-medium text-[#e5b348]"
+                  : "text-[#a4a4a4] hover:text-white",
               ].join(" ")}
             >
               {item.label}
 
-              {item.active ? (
+              {isNavigationActive(pathname, item.href) ? (
                 <span className="absolute inset-x-1 bottom-3 h-[2px] bg-[#e3b049]" />
               ) : null}
             </Link>

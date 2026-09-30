@@ -2,6 +2,14 @@ import Link from "next/link";
 
 import { fetchExplorerApi } from "../../../lib/explorer-server-api";
 import { parseExplorerNetwork } from "../../../lib/explorer-network";
+import {
+  analyzeMercaturaPqWitness,
+  formatMercaturaPqWitness,
+  formatMercaturaScriptType,
+  isMercaturaPqScriptType,
+  ML_DSA_65_PUBLIC_KEY_BYTES,
+  ML_DSA_65_SIGNATURE_BYTES,
+} from "../../../lib/mercatura-pq";
 
 type TransactionDetailResponse = {
   transaction: {
@@ -134,28 +142,6 @@ function formatMca(baseUnits: string | null): string {
   return `${whole.toLocaleString("en-US")}.${fraction} MCA`;
 }
 
-function formatScriptType(type: string | null): string {
-  if (type === null) {
-    return "Unavailable";
-  }
-
-  if (type === "witness_v2_mercatura_pq") {
-    return "Mercatura PQ · Witness v2";
-  }
-
-  return type.replaceAll("_", " ");
-}
-
-function formatWitness(witness: string[] | null): string {
-  if (witness === null || witness.length === 0) {
-    return "None";
-  }
-
-  const sizes = witness.map((item) => `${item.length / 2} B`);
-
-  return `${witness.length} item${witness.length === 1 ? "" : "s"} · ${sizes.join(" + ")}`;
-}
-
 function shortHash(value: string): string {
   if (value.length <= 30) {
     return value;
@@ -211,6 +197,12 @@ export default async function TransactionDetailPage({
 
   const { transaction, inputs, outputs } = detail;
   const coinbase = inputs.some((input) => input.coinbase !== null);
+  const pqInputs = inputs.filter((input) => isMercaturaPqScriptType(input.prev_script_type));
+  const pqOutputs = outputs.filter((output) => isMercaturaPqScriptType(output.script_type));
+  const hasPqActivity = pqInputs.length > 0 || pqOutputs.length > 0;
+  const pqWitnessesMatchingV1 = pqInputs.filter(
+    (input) => analyzeMercaturaPqWitness(input.witness).matchesV1Shape
+  ).length;
 
   return (
     <main className="mx-auto max-w-[1540px] px-5 py-8 sm:px-8">
@@ -242,9 +234,17 @@ export default async function TransactionDetailPage({
               </p>
             </div>
 
-            <span className="rounded-full border border-[#665020] bg-[#17140c] px-3 py-1.5 text-xs font-medium text-[#e3ae43]">
-              {coinbase ? "Coinbase" : "Confirmed"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[#665020] bg-[#17140c] px-3 py-1.5 text-xs font-medium text-[#e3ae43]">
+                {coinbase ? "Coinbase" : "Confirmed"}
+              </span>
+
+              {hasPqActivity && (
+                <span className="rounded-full border border-[#7a5b20] bg-[#1c170b] px-3 py-1.5 text-xs font-semibold text-[#efbc50]">
+                  PQ · ML-DSA-65
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -287,6 +287,108 @@ export default async function TransactionDetailPage({
           </div>
         </div>
       </section>
+
+      {hasPqActivity && (
+        <section id="pq" className="gold-panel mt-4 overflow-hidden rounded-[10px]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#292820] px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[#d8a33a]">
+                Post-Quantum
+              </p>
+              <h2 className="mt-1 text-[15px] font-semibold text-[#efefec]">
+                Mercatura PQ Authorization
+              </h2>
+            </div>
+
+            <Link
+              href={`/pq?network=${network}`}
+              className="text-xs font-medium text-[#d8a33a] hover:text-[#edbe5b]"
+            >
+              PQ Network Overview →
+            </Link>
+          </div>
+
+          <div className="grid gap-px bg-[#25251f] sm:grid-cols-2 lg:grid-cols-4">
+            <div className="bg-[#0b0c0b] px-5 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">
+                Authorization
+              </p>
+              <p className="mt-2 text-sm font-medium text-[#e3ae43]">ML-DSA-65</p>
+              <p className="mt-1 text-xs text-[#8c8d89]">Mercatura PQ Authorization v1</p>
+            </div>
+
+            <div className="bg-[#0b0c0b] px-5 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">Output Type</p>
+              <p className="mt-2 text-sm font-medium text-white">Native Witness v2</p>
+              <p className="mt-1 font-mono text-[10px] text-[#8c8d89]">witness_v2_mercatura_pq</p>
+            </div>
+
+            <div className="bg-[#0b0c0b] px-5 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">PQ Inputs</p>
+              <p className="mt-2 text-sm font-medium text-white">
+                {pqInputs.length.toLocaleString("en-US")}
+              </p>
+              <p className="mt-1 text-xs text-[#8c8d89]">
+                {pqWitnessesMatchingV1.toLocaleString("en-US")} match v1 witness shape
+              </p>
+            </div>
+
+            <div className="bg-[#0b0c0b] px-5 py-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">PQ Outputs</p>
+              <p className="mt-2 text-sm font-medium text-white">
+                {pqOutputs.length.toLocaleString("en-US")}
+              </p>
+              <p className="mt-1 text-xs text-[#8c8d89]">Native post-quantum outputs</p>
+            </div>
+          </div>
+
+          <div className="px-5 py-4 text-xs leading-6 text-[#999b96] sm:px-6">
+            Mercatura PQ Authorization v1 uses a two-item witness for a PQ spend: a{" "}
+            <span className="font-medium text-[#d4d5d0]">
+              {ML_DSA_65_SIGNATURE_BYTES.toLocaleString("en-US")}-byte ML-DSA-65 signature
+            </span>{" "}
+            followed by the{" "}
+            <span className="font-medium text-[#d4d5d0]">
+              {ML_DSA_65_PUBLIC_KEY_BYTES.toLocaleString("en-US")}-byte public key
+            </span>
+            . The explorer reports observed structure; consensus validation remains authoritative.
+          </div>
+
+          {pqInputs.length > 0 && (
+            <div className="divide-y divide-[#24251f] border-t border-[#292820]">
+              {pqInputs.map((input) => {
+                const analysis = analyzeMercaturaPqWitness(input.witness);
+
+                return (
+                  <div
+                    key={`pq-input:${input.vin}`}
+                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6"
+                  >
+                    <div>
+                      <span className="text-xs font-medium text-[#d8a33a]">Input #{input.vin}</span>
+                      <span className="ml-3 text-xs text-[#92938f]">
+                        {formatMercaturaPqWitness(input.witness)}
+                      </span>
+                    </div>
+
+                    <span
+                      className={
+                        analysis.matchesV1Shape
+                          ? "text-xs font-medium text-[#c8c9c4]"
+                          : "text-xs font-medium text-[#c28d55]"
+                      }
+                    >
+                      {analysis.matchesV1Shape
+                        ? "Matches PQ v1 structure"
+                        : "Non-standard PQ witness shape"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="gold-panel mt-4 overflow-hidden rounded-[10px]">
         <div className="border-b border-[#292820] px-5 py-4">
@@ -377,7 +479,7 @@ export default async function TransactionDetailPage({
                       </Link>
                     )}
                     <p className="mt-2 text-xs text-[#8f918d]">
-                      {formatScriptType(input.prev_script_type)}
+                      {formatMercaturaScriptType(input.prev_script_type)}
                     </p>
                   </div>
                 </div>
@@ -385,7 +487,9 @@ export default async function TransactionDetailPage({
 
               <div className="mt-4 border-t border-[#24251f] pt-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">Witness</p>
-                <p className="mt-2 text-xs text-[#aaa]">{formatWitness(input.witness)}</p>
+                <p className="mt-2 text-xs text-[#aaa]">
+                  {formatMercaturaPqWitness(input.witness)}
+                </p>
               </div>
             </article>
           ))}
@@ -423,7 +527,7 @@ export default async function TransactionDetailPage({
                     </Link>
                   )}
                   <p className="mt-2 text-xs text-[#8f918d]">
-                    {formatScriptType(output.script_type)}
+                    {formatMercaturaScriptType(output.script_type)}
                   </p>
                 </div>
 
