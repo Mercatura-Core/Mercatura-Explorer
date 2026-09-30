@@ -15,7 +15,7 @@ import { NetworkSelector } from "./network-selector";
 const navigation = [
   { label: "Explorer", href: "/" },
   { label: "Network", href: "/#network" },
-  { label: "Mining", href: "/#mining" },
+  { label: "Mining", href: "/mining" },
   { label: "Emission", href: "/#emission" },
   { label: "Statistics", href: "/#statistics" },
   { label: "PQ", href: "/pq" },

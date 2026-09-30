@@ -955,7 +955,7 @@ export default async function Home({
               </div>
 
               <Link
-                href="/#mining"
+                href={`/mining?network=${network}`}
                 className="flex items-center gap-1.5 text-xs font-medium text-[#d7a33c]"
               >
                 View Mining
