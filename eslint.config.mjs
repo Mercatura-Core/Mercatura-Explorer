@@ -8,7 +8,6 @@ export default tseslint.config(
       "dist/**",
       "build/**",
       "coverage/**",
-      "apps/web/public/maplibre/**",
       "**/*.tsbuildinfo",
     ],
   },

@@ -4,3 +4,4 @@ dist/
 build/
 coverage/
 package-lock.json
+apps/web/public/maps/**

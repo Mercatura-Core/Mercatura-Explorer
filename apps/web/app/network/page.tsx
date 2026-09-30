@@ -1,10 +1,6 @@
 import Link from "next/link";
 
-import {
-  NetworkMap,
-  type NetworkMapLocation,
-  type NetworkMapPoint,
-} from "../../components/network-map";
+import { NetworkCountryMap, type NetworkCountry } from "../../components/network-country-map";
 import { parseExplorerNetwork } from "../../lib/explorer-network";
 import { fetchExplorerApi } from "../../lib/explorer-server-api";
 import {
@@ -36,7 +32,7 @@ type PublicPeer = {
   syncedBlocks: number;
   mappedAs: number | null;
   geolocationEligible: boolean;
-  location: NetworkMapLocation | null;
+  location: unknown;
 };
 
 type DiscoveredNode = {
@@ -46,7 +42,7 @@ type DiscoveredNode = {
   lastSeen: number;
   services: number;
   geolocationEligible: boolean;
-  location: NetworkMapLocation | null;
+  location: unknown;
 };
 
 type NetworkResponse = {
@@ -92,12 +88,7 @@ type NetworkResponse = {
     provider: string | null;
     eligibleAddressCount: number;
     locatedAddressCount: number;
-    countries: Array<{
-      countryCode: string | null;
-      countryName: string;
-      count: number;
-    }>;
-    points: NetworkMapPoint[];
+    countries: NetworkCountry[];
   };
 };
 
@@ -216,9 +207,6 @@ export default async function NetworkPage({
   const requestedNetwork = Array.isArray(query.network) ? query.network[0] : query.network;
 
   const networkName = parseExplorerNetwork(requestedNetwork);
-
-  const mapStyleUrl =
-    process.env.MERCATURA_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty";
 
   const network = await fetchExplorerApi<NetworkResponse>(networkName, "network");
 
@@ -390,15 +378,24 @@ export default async function NetworkPage({
               </div>
 
               <div className="p-4">
-                <NetworkMap
-                  points={network.geolocation.points}
-                  providerConfigured={network.geolocation.providerConfigured}
-                  eligibleAddressCount={network.geolocation.eligibleAddressCount}
-                  styleUrl={mapStyleUrl}
+                <NetworkCountryMap
+                  countries={network.geolocation.countries}
+                  locatedAddressCount={network.geolocation.locatedAddressCount}
                 />
 
                 <p className="mt-3 text-[10px] leading-4 text-[#666862]">
-                  Node locations are approximate. GeoLite Data created by MaxMind.
+                  Country shading reflects geolocated public observations. GeoLite Data created by
+                  MaxMind. Country boundaries from Natural Earth; TopoJSON packaging © 2026 Alex
+                  Rembish under{" "}
+                  <a
+                    href="https://creativecommons.org/licenses/by/4.0/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#8f7138] hover:text-[#d8a33a]"
+                  >
+                    CC BY 4.0
+                  </a>
+                  .
                 </p>
 
                 <div className="mt-4 border-t border-[#292820] pt-4">

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { NetworkCountryMap, type NetworkCountry } from "../components/network-country-map";
 import { fetchExplorerApi } from "../lib/explorer-server-api";
 import { parseExplorerNetwork } from "../lib/explorer-network";
 
@@ -148,47 +149,6 @@ function PanelTitleIcon({ type }: { type: "blocks" | "transactions" }) {
       strokeWidth="1.7"
     >
       <path d="M7 7h11l-3-3M17 17H6l3 3" />
-    </svg>
-  );
-}
-
-function NetworkSketch() {
-  return (
-    <svg viewBox="0 0 680 250" aria-label="Network map placeholder" className="h-full w-full">
-      <g fill="#272a28" opacity="0.95">
-        <path d="M75 80 116 58l53 8 27 22-10 27-34 6-29 31-31-7-19-32Z" />
-        <path d="m157 145 26 13 18 43-14 34-20-10-9-36-15-20Z" />
-        <path d="m287 74 38-18 47 8 23 17-7 20-31 8-11 25-29-1-17-20-28-10Z" />
-        <path d="m331 128 30 4 22 33-10 52-25 20-21-27 5-37-14-28Z" />
-        <path d="m390 67 63-16 59 11 66 36-11 28-52-3-27 18-44-9-19-25-38 2-20-19Z" />
-        <path d="m532 171 37 4 18 23-19 25-34-9-12-22Z" />
-      </g>
-
-      <g fill="none" stroke="#8f6726" strokeWidth="1.2" opacity="0.55">
-        <path d="M118 97 Q255 5 430 92" />
-        <path d="M118 97 Q318 213 530 194" />
-        <path d="M331 94 Q439 4 558 101" />
-        <path d="M181 173 Q344 98 492 117" />
-        <path d="M373 162 Q463 101 564 195" />
-      </g>
-
-      <g fill="#e6b54b">
-        <circle cx="118" cy="97" r="4" />
-        <circle cx="181" cy="173" r="3.5" />
-        <circle cx="331" cy="94" r="4" />
-        <circle cx="373" cy="162" r="3.5" />
-        <circle cx="430" cy="92" r="4" />
-        <circle cx="492" cy="117" r="3.5" />
-        <circle cx="558" cy="101" r="4" />
-        <circle cx="530" cy="194" r="3.5" />
-      </g>
-
-      <g fill="#e6b54b" opacity="0.18">
-        <circle cx="118" cy="97" r="12" />
-        <circle cx="331" cy="94" r="13" />
-        <circle cx="430" cy="92" r="12" />
-        <circle cx="558" cy="101" r="13" />
-      </g>
     </svg>
   );
 }
@@ -424,6 +384,8 @@ export default async function Home({
         geolocation: {
           providerConfigured: boolean;
           eligibleAddressCount: number;
+          locatedAddressCount: number;
+          countries: NetworkCountry[];
         };
       }>(network, "network"),
 
@@ -928,18 +890,12 @@ export default async function Home({
                 </div>
               </div>
 
-              <div className="network-sketch relative min-h-[215px] overflow-hidden">
-                <div className="absolute inset-3">
-                  <NetworkSketch />
-                </div>
-
-                <p className="absolute bottom-3 right-4 text-[10px] text-[#626460]">
-                  {networkOverview?.geolocation.providerConfigured
-                    ? `${networkOverview.geolocation.eligibleAddressCount.toLocaleString(
-                        "en-US"
-                      )} geolocation-eligible addresses`
-                    : "Geographic map awaits geolocation provider"}
-                </p>
+              <div className="relative min-h-[215px] overflow-hidden">
+                <NetworkCountryMap
+                  countries={networkOverview?.geolocation.countries ?? []}
+                  locatedAddressCount={networkOverview?.geolocation.locatedAddressCount ?? 0}
+                  variant="compact"
+                />
               </div>
             </div>
           </article>
