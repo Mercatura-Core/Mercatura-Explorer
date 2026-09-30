@@ -890,7 +890,7 @@ export default async function Home({
               </div>
 
               <Link
-                href="/#network"
+                href={`/network?network=${network}`}
                 className="flex items-center gap-1.5 text-xs font-medium text-[#d7a33c]"
               >
                 View Network
