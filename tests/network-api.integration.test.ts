@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApi } from "../apps/api/src/app.js";
+import { NETWORK_ADDRESS_SAMPLE_LIMIT } from "../apps/api/src/routes/network.js";
 import { createRpcClient } from "../packages/mercatura-rpc/src/index.js";
 
 const integrationEnabled = process.env.MERCATURA_API_INTEGRATION === "1";
@@ -13,7 +14,7 @@ describe.runIf(integrationEnabled)("Mercatura Network API integration", () => {
     try {
       const [peers, addresses, addrman] = await Promise.all([
         rpc.getPeerInfo(),
-        rpc.getNodeAddresses(0),
+        rpc.getNodeAddresses(NETWORK_ADDRESS_SAMPLE_LIMIT),
         rpc.getAddrManInfo(),
       ]);
 

@@ -63,6 +63,7 @@ type NetworkResponse = {
   discovered: {
     reportedCount: number;
     publicCount: number;
+    sampleLimit: number;
     items: DiscoveredNode[];
   };
   addrman: Record<
@@ -558,13 +559,13 @@ export default async function NetworkPage({
                   Public Discovered Nodes
                 </h2>
                 <p className="mt-1 text-xs text-[#777975]">
-                  Most recently seen public addresses returned by this node
+                  Most recently seen public addresses from the bounded Core sample
                 </p>
               </div>
 
               <span className="text-xs text-[#858783]">
                 Showing {visibleDiscovered.length.toLocaleString("en-US")} of{" "}
-                {network.discovered.publicCount.toLocaleString("en-US")}
+                {network.discovered.publicCount.toLocaleString("en-US")} sampled public
               </span>
             </div>
 

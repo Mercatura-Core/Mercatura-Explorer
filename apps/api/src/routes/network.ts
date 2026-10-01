@@ -11,6 +11,8 @@ export type NetworkRpc = Pick<
   "getNetworkInfo" | "getPeerInfo" | "getNodeAddresses" | "getAddrManInfo"
 >;
 
+export const NETWORK_ADDRESS_SAMPLE_LIMIT = 1000;
+
 interface NetworkMapPoint extends NetworkLocation {
   address: string;
   port: number | null;
@@ -164,7 +166,7 @@ export function registerNetworkRoutes(
     const [network, peers, discovered, addrman] = await Promise.all([
       rpc.getNetworkInfo(),
       rpc.getPeerInfo(),
-      rpc.getNodeAddresses(0),
+      rpc.getNodeAddresses(NETWORK_ADDRESS_SAMPLE_LIMIT),
       rpc.getAddrManInfo(),
     ]);
 
@@ -333,6 +335,7 @@ export function registerNetworkRoutes(
       discovered: {
         reportedCount: discovered.length,
         publicCount: publicDiscovered.length,
+        sampleLimit: NETWORK_ADDRESS_SAMPLE_LIMIT,
         items: publicDiscovered,
       },
 
