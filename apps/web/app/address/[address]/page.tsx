@@ -26,6 +26,8 @@ type AddressTransaction = {
   net_base_units: string;
 };
 
+const MAX_ADDRESS_OFFSET = 100_000;
+
 type AddressTransactionsResponse = {
   address: string;
   transactions: AddressTransaction[];
@@ -71,7 +73,7 @@ function parseOffset(value: string | string[] | undefined): number {
 
   const offset = Number(selected);
 
-  if (!Number.isSafeInteger(offset) || offset < 0) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > MAX_ADDRESS_OFFSET) {
     return 0;
   }
 

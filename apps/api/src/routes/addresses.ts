@@ -6,6 +6,7 @@ type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const MAX_OFFSET = 100_000;
 
 function parsePagination(
   limitValue: string | undefined,
@@ -21,8 +22,8 @@ function parsePagination(
     throw new Error(`limit must be an integer from 1 to ${MAX_LIMIT}`);
   }
 
-  if (!Number.isSafeInteger(offset) || offset < 0) {
-    throw new Error("offset must be a non-negative integer");
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > MAX_OFFSET) {
+    throw new Error(`offset must be a non-negative integer not exceeding ${MAX_OFFSET}`);
   }
 
   return {

@@ -190,6 +190,17 @@ describe.runIf(integrationEnabled)("Mercatura address API integration", () => {
       });
 
       expect(badOffset.statusCode).toBe(400);
+
+      const excessiveOffset = await app.inject({
+        method: "GET",
+        url: `/api/v1/addresses/${MINING_ADDRESS}/transactions?offset=100001`,
+      });
+
+      expect(excessiveOffset.statusCode).toBe(400);
+
+      expect(excessiveOffset.json()).toMatchObject({
+        error: "invalid_request",
+      });
     } finally {
       await app.close();
     }
