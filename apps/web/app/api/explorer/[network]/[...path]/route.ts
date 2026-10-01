@@ -26,6 +26,20 @@ function getBackendBaseUrl(network: ExplorerNetwork): string | null {
   return url.origin;
 }
 
+function isSafeBackendPath(path: string[]): boolean {
+  return (
+    path.length > 0 &&
+    path.every(
+      (segment) =>
+        segment.length > 0 &&
+        segment !== "." &&
+        segment !== ".." &&
+        !segment.includes("/") &&
+        !segment.includes("\\")
+    )
+  );
+}
+
 export async function GET(
   request: NextRequest,
   context: {
@@ -42,6 +56,16 @@ export async function GET(
       {
         error: "invalid_network",
         message: "Network must be mainnet or testnet",
+      },
+      { status: 400 }
+    );
+  }
+
+  if (!isSafeBackendPath(path)) {
+    return NextResponse.json(
+      {
+        error: "invalid_path",
+        message: "Explorer API path is invalid",
       },
       { status: 400 }
     );
