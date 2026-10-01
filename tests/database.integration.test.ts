@@ -5,6 +5,26 @@ import { createDatabase } from "../packages/database/src/index.js";
 const integrationEnabled = process.env.MERCATURA_DB_INTEGRATION === "1";
 
 describe.runIf(integrationEnabled)("Mercatura database integration", () => {
+  it("applies a bounded PostgreSQL statement timeout", async () => {
+    const db = createDatabase();
+
+    try {
+      const result = await db
+        .selectFrom("chain_state")
+        .select((expression) =>
+          expression
+            .fn<string>("current_setting", [expression.val("statement_timeout")])
+            .as("statement_timeout")
+        )
+        .limit(1)
+        .executeTakeFirstOrThrow();
+
+      expect(result.statement_timeout).toBe("10s");
+    } finally {
+      await db.destroy();
+    }
+  });
+
   it("reads a consistent chain state", async () => {
     const db = createDatabase();
 
