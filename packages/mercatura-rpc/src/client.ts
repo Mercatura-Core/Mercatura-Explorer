@@ -13,13 +13,24 @@ import {
   type RpcResponse,
 } from "./types.js";
 
+export const DEFAULT_RPC_TIMEOUT_MS = 10_000;
+
 export class MercaturaRpcClient {
   private readonly url: string;
   private readonly authorization: string;
+  private readonly timeoutMs: number;
   private nextRequestId = 1;
 
   constructor(options: RpcClientOptions) {
     this.url = options.url;
+
+    const timeoutMs = options.timeoutMs ?? DEFAULT_RPC_TIMEOUT_MS;
+
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+      throw new Error("Mercatura RPC timeout must be a positive integer");
+    }
+
+    this.timeoutMs = timeoutMs;
 
     const credentials = `${options.credentials.username}:${options.credentials.password}`;
 
@@ -41,6 +52,7 @@ export class MercaturaRpcClient {
         method,
         params,
       }),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
 
     if (!response.ok) {

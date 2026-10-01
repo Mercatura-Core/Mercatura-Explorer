@@ -6,6 +6,7 @@ export interface RpcCredentials {
 export interface RpcClientOptions {
   url: string;
   credentials: RpcCredentials;
+  timeoutMs?: number;
 }
 
 export interface RpcErrorData {
