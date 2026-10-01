@@ -10,6 +10,7 @@ import {
   parseExplorerNetwork,
   type ExplorerNetwork,
 } from "../lib/explorer-network";
+import { HeaderActions } from "./header-actions";
 import { NetworkSelector } from "./network-selector";
 
 const navigation = [
@@ -35,37 +36,6 @@ function isNavigationActive(pathname: string, href: string): boolean {
   }
 
   return pathname === href;
-}
-
-function SettingsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19 12a7 7 0 0 0-.08-1l2.05-1.6-2-3.46-2.48 1a7 7 0 0 0-1.73-1L14.4 3h-4.8l-.36 2.94a7 7 0 0 0-1.73 1l-2.48-1-2 3.46L5.08 11a7 7 0 0 0 0 2l-2.05 1.6 2 3.46 2.48-1a7 7 0 0 0 1.73 1L9.6 21h4.8l.36-2.94a7 7 0 0 0 1.73-1l2.48 1 2-3.46L18.92 13a7 7 0 0 0 .08-1Z" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" />
-    </svg>
-  );
 }
 
 export function SiteHeader() {
@@ -130,22 +100,8 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="order-2 ml-auto hidden min-w-[110px] items-center justify-end gap-1.5 sm:flex md:order-3">
-          <button
-            type="button"
-            aria-label="Explorer settings"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4b3718] bg-[#12110d] text-[#d9aa45]"
-          >
-            <SettingsIcon />
-          </button>
-
-          <button
-            type="button"
-            aria-label="Dark theme"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#332816] bg-[#0b0b0a] text-[#8e6e2e]"
-          >
-            <MoonIcon />
-          </button>
+        <div className="order-2 ml-auto hidden min-w-[110px] items-center justify-end sm:flex md:order-3">
+          <HeaderActions />
         </div>
       </div>
     </header>
