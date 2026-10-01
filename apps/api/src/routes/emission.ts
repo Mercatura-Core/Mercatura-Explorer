@@ -29,6 +29,18 @@ function parseLimit(value: string | undefined): number {
   return limit;
 }
 
+function parseIncludeSpendable(value: string | undefined): boolean {
+  if (value === undefined || value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  throw new Error("includeSpendable must be true or false");
+}
+
 function parseBeforeHeight(value: string | undefined): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -48,14 +60,17 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
     Querystring: {
       limit?: string;
       beforeHeight?: string;
+      includeSpendable?: string;
     };
   }>("/api/v1/emission", async (request, reply) => {
     let limit: number;
     let beforeHeight: number | undefined;
+    let includeSpendable: boolean;
 
     try {
       limit = parseLimit(request.query.limit);
       beforeHeight = parseBeforeHeight(request.query.beforeHeight);
+      includeSpendable = parseIncludeSpendable(request.query.includeSpendable);
     } catch (error) {
       return reply.code(400).send({
         error: "invalid_request",
@@ -146,17 +161,19 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
           ON stats.block_hash = coinbase.hash
       `.execute(database),
 
-      database
-        .selectFrom("active_utxos")
-        .select(
-          sql<string>`
-            COALESCE(
-              SUM(value_base_units),
-              0
-            )::text
-          `.as("value")
-        )
-        .executeTakeFirstOrThrow(),
+      includeSpendable
+        ? database
+            .selectFrom("active_utxos")
+            .select(
+              sql<string>`
+                COALESCE(
+                  SUM(value_base_units),
+                  0
+                )::text
+              `.as("value")
+            )
+            .executeTakeFirstOrThrow()
+        : Promise.resolve({ value: null }),
 
       database
         .selectFrom("blocks as block")

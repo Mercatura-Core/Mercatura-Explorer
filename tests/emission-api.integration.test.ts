@@ -190,6 +190,30 @@ describe.runIf(integrationEnabled)("Mercatura emission API integration", () => {
       expect(badHeight.json()).toMatchObject({
         error: "invalid_request",
       });
+
+      const withoutSpendable = await app.inject({
+        method: "GET",
+        url: "/api/v1/emission?limit=2&includeSpendable=false",
+      });
+
+      expect(withoutSpendable.statusCode).toBe(200);
+
+      expect(withoutSpendable.json()).toMatchObject({
+        totals: {
+          spendableUtxoValueBaseUnits: null,
+        },
+      });
+
+      const badIncludeSpendable = await app.inject({
+        method: "GET",
+        url: "/api/v1/emission?includeSpendable=invalid",
+      });
+
+      expect(badIncludeSpendable.statusCode).toBe(400);
+
+      expect(badIncludeSpendable.json()).toMatchObject({
+        error: "invalid_request",
+      });
     } finally {
       await app.close();
     }

@@ -360,7 +360,7 @@ export default async function Home({
           time: string;
           subsidy_base_units: string;
         }>;
-      }>(network, "emission?limit=10"),
+      }>(network, "emission?limit=10&includeSpendable=false"),
 
       fetchExplorerApi<{
         peers: {
