@@ -18,7 +18,12 @@ const STATISTICS_ACTIVITY_DAYS = {
 } as const;
 
 function parseStatisticsActivityRange(value: string | undefined): StatisticsActivityRange {
+  if (value === undefined) {
+    return "30d";
+  }
+
   switch (value) {
+    case "30d":
     case "90d":
     case "180d":
     case "365d":
@@ -27,7 +32,7 @@ function parseStatisticsActivityRange(value: string | undefined): StatisticsActi
       return value;
 
     default:
-      return "30d";
+      throw new Error("range must be one of 30d, 90d, 180d, 365d, 1095d, or all");
   }
 }
 
@@ -94,8 +99,17 @@ function firstRow<T>(rows: T[], name: string): T {
 }
 
 export function registerStatisticsRoutes(app: FastifyInstance, database: ExplorerDatabase): void {
-  app.get<{ Querystring: { range?: string } }>("/api/v1/statistics", async (request) => {
-    const activityRange = parseStatisticsActivityRange(request.query.range);
+  app.get<{ Querystring: { range?: string } }>("/api/v1/statistics", async (request, reply) => {
+    let activityRange: StatisticsActivityRange;
+
+    try {
+      activityRange = parseStatisticsActivityRange(request.query.range);
+    } catch (error) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: error instanceof Error ? error.message : "Invalid statistics range",
+      });
+    }
 
     const activityDays = activityRange === "all" ? null : STATISTICS_ACTIVITY_DAYS[activityRange];
 

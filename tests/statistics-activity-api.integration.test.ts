@@ -77,9 +77,12 @@ describe.runIf(integrationEnabled)("Mercatura daily transaction statistics API i
         url: "/api/v1/statistics?range=invalid",
       });
 
-      expect(invalidResponse.statusCode).toBe(200);
+      expect(invalidResponse.statusCode).toBe(400);
 
-      expect(invalidResponse.json<ActivityResponse>().activity.range).toBe("30d");
+      expect(invalidResponse.json()).toMatchObject({
+        error: "invalid_request",
+        message: "range must be one of 30d, 90d, 180d, 365d, 1095d, or all",
+      });
     } finally {
       await app.close();
     }
