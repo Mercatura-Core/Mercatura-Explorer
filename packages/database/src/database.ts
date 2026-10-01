@@ -4,6 +4,23 @@ import { Pool } from "pg";
 import type { Database } from "./schema.js";
 
 const DEFAULT_STATEMENT_TIMEOUT_MS = 10_000;
+const DEFAULT_CONNECTION_TIMEOUT_MS = 10_000;
+
+function connectionTimeoutMs(): number {
+  const raw = process.env.MERCATURA_DB_CONNECTION_TIMEOUT_MS;
+
+  if (raw === undefined) {
+    return DEFAULT_CONNECTION_TIMEOUT_MS;
+  }
+
+  const parsed = Number(raw);
+
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error("MERCATURA_DB_CONNECTION_TIMEOUT_MS must be a positive integer");
+  }
+
+  return parsed;
+}
 
 function statementTimeoutMs(): number {
   const raw = process.env.MERCATURA_DB_STATEMENT_TIMEOUT_MS;
@@ -28,6 +45,7 @@ export function createDatabase(): Kysely<Database> {
     database: process.env.PGDATABASE ?? "mercatura_explorer",
     user: process.env.PGUSER ?? process.env.USER,
     password: process.env.PGPASSWORD,
+    connectionTimeoutMillis: connectionTimeoutMs(),
     statement_timeout: statementTimeoutMs(),
   });
 
