@@ -4,7 +4,180 @@ import { createDatabase } from "@mercatura/database";
 
 type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
+const DEFAULT_LIST_LIMIT = 25;
+const MAX_LIST_LIMIT = 100;
+const MAX_LIST_OFFSET = 100_000;
+
+function parseListInteger(
+  value: string | undefined,
+  name: string,
+  minimum: number,
+  maximum: number
+): number {
+  if (value === undefined) {
+    return name === "limit" ? DEFAULT_LIST_LIMIT : 0;
+  }
+
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${name} must be an integer`);
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be between ${minimum} and ${maximum}`);
+  }
+
+  return parsed;
+}
+
 export function registerTransactionRoutes(app: FastifyInstance, database: ExplorerDatabase): void {
+  app.get<{
+    Querystring: {
+      limit?: string;
+      offset?: string;
+    };
+  }>("/api/v1/transactions", async (request, reply) => {
+    let limit: number;
+    let offset: number;
+
+    try {
+      limit = parseListInteger(request.query.limit, "limit", 1, MAX_LIST_LIMIT);
+      offset = parseListInteger(request.query.offset, "offset", 0, MAX_LIST_OFFSET);
+    } catch (error) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: error instanceof Error ? error.message : "Invalid transaction-list request",
+      });
+    }
+
+    const transactions = await database
+      .selectFrom("transactions as tx")
+      .innerJoin("blocks as block", "block.hash", "tx.block_hash")
+      .select([
+        "tx.id",
+        "tx.txid",
+        "tx.wtxid",
+        "tx.block_hash",
+        "tx.block_index",
+        "tx.version",
+        "tx.locktime",
+        "tx.size",
+        "tx.vsize",
+        "tx.weight",
+        "tx.fee_base_units",
+        "block.height as block_height",
+        "block.time as block_time",
+      ])
+      .where("block.active", "=", true)
+      .orderBy("block.height", "desc")
+      .orderBy("tx.block_index", "desc")
+      .limit(limit)
+      .offset(offset)
+      .execute();
+
+    if (transactions.length === 0) {
+      return {
+        transactions: [],
+        pagination: {
+          limit,
+          offset,
+          nextOffset: null,
+        },
+      };
+    }
+
+    const transactionIds = transactions.map((transaction) => transaction.id);
+
+    const [inputs, outputs] = await Promise.all([
+      database
+        .selectFrom("transaction_inputs as input")
+        .leftJoin("transaction_outputs as previous_output", (join) =>
+          join
+            .onRef("previous_output.transaction_id", "=", "input.resolved_prev_transaction_id")
+            .onRef("previous_output.vout", "=", "input.prev_vout")
+        )
+        .select([
+          "input.transaction_id",
+          "input.coinbase",
+          "previous_output.address as prev_address",
+        ])
+        .where("input.transaction_id", "in", transactionIds)
+        .execute(),
+
+      database
+        .selectFrom("transaction_outputs")
+        .select(["transaction_id", "value_base_units", "address"])
+        .where("transaction_id", "in", transactionIds)
+        .execute(),
+    ]);
+
+    const inputAddresses = new Map<string, Set<string>>();
+    const outputAddresses = new Map<string, Set<string>>();
+    const outputTotals = new Map<string, bigint>();
+    const coinbaseTransactions = new Set<string>();
+
+    for (const transaction of transactions) {
+      const key = String(transaction.id);
+
+      inputAddresses.set(key, new Set());
+      outputAddresses.set(key, new Set());
+      outputTotals.set(key, 0n);
+    }
+
+    for (const input of inputs) {
+      const key = String(input.transaction_id);
+
+      if (input.coinbase !== null) {
+        coinbaseTransactions.add(key);
+      }
+
+      if (input.prev_address !== null) {
+        inputAddresses.get(key)?.add(input.prev_address);
+      }
+    }
+
+    for (const output of outputs) {
+      const key = String(output.transaction_id);
+
+      if (output.address !== null) {
+        outputAddresses.get(key)?.add(output.address);
+      }
+
+      outputTotals.set(key, (outputTotals.get(key) ?? 0n) + BigInt(output.value_base_units));
+    }
+
+    return {
+      transactions: transactions.map((transaction) => {
+        const key = String(transaction.id);
+
+        return {
+          txid: transaction.txid,
+          wtxid: transaction.wtxid,
+          blockHash: transaction.block_hash,
+          blockHeight: transaction.block_height,
+          blockTime: transaction.block_time,
+          blockIndex: transaction.block_index,
+          version: transaction.version,
+          locktime: transaction.locktime,
+          size: transaction.size,
+          vsize: transaction.vsize,
+          weight: transaction.weight,
+          feeBaseUnits: transaction.fee_base_units,
+          coinbase: coinbaseTransactions.has(key),
+          inputAddresses: [...(inputAddresses.get(key) ?? [])],
+          outputAddresses: [...(outputAddresses.get(key) ?? [])],
+          totalOutputBaseUnits: (outputTotals.get(key) ?? 0n).toString(),
+        };
+      }),
+      pagination: {
+        limit,
+        offset,
+        nextOffset: transactions.length < limit ? null : offset + transactions.length,
+      },
+    };
+  });
+
   app.get<{
     Params: {
       txid: string;

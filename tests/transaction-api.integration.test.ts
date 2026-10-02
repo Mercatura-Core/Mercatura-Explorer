@@ -9,6 +9,84 @@ const FIRST_PQ_TXID = "1318a60b3b340a91495093325f788c8c88b36ba99ae7af320bcdc732f
 const SECOND_PQ_TXID = "54968d4b8dc8441a9187d23ed887b6ab01b1ba2759d491359051b7fedde70138";
 
 describe.runIf(integrationEnabled)("Mercatura transaction API integration", () => {
+  it("serves paginated active-chain transaction history", async () => {
+    const app = buildApi();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/transactions?limit=2&offset=0",
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      const body = response.json<{
+        transactions: Array<{
+          txid: string;
+          blockHeight: number;
+          blockIndex: number;
+          totalOutputBaseUnits: string;
+          inputAddresses: string[];
+          outputAddresses: string[];
+        }>;
+        pagination: {
+          limit: number;
+          offset: number;
+          nextOffset: number | null;
+        };
+      }>();
+
+      expect(body.transactions).toHaveLength(2);
+      expect(body.pagination.limit).toBe(2);
+      expect(body.pagination.offset).toBe(0);
+      expect(body.pagination.nextOffset).toBe(2);
+
+      const [first, second] = body.transactions;
+
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+
+      expect(
+        first!.blockHeight > second!.blockHeight ||
+          (first!.blockHeight === second!.blockHeight && first!.blockIndex >= second!.blockIndex)
+      ).toBe(true);
+
+      expect(/^\d+$/.test(first!.totalOutputBaseUnits)).toBe(true);
+      expect(Array.isArray(first!.inputAddresses)).toBe(true);
+      expect(Array.isArray(first!.outputAddresses)).toBe(true);
+
+      const next = await app.inject({
+        method: "GET",
+        url: "/api/v1/transactions?limit=2&offset=2",
+      });
+
+      expect(next.statusCode).toBe(200);
+
+      const nextBody = next.json<{
+        transactions: Array<{ txid: string }>;
+      }>();
+
+      expect(nextBody.transactions.length).toBeGreaterThan(0);
+      expect(nextBody.transactions[0]?.txid).not.toBe(body.transactions[0]?.txid);
+
+      const badLimit = await app.inject({
+        method: "GET",
+        url: "/api/v1/transactions?limit=101",
+      });
+
+      expect(badLimit.statusCode).toBe(400);
+
+      const badOffset = await app.inject({
+        method: "GET",
+        url: "/api/v1/transactions?offset=100001",
+      });
+
+      expect(badOffset.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("serves PQ transaction detail with resolved prevouts and spends", async () => {
     const app = buildApi();
 
@@ -89,7 +167,7 @@ describe.runIf(integrationEnabled)("Mercatura transaction API integration", () =
     }
   });
 
-  it("serves the later PQ spend and current unspent outputs", async () => {
+  it("serves the later PQ spend and current output spend status", async () => {
     const app = buildApi();
 
     try {
@@ -134,7 +212,11 @@ describe.runIf(integrationEnabled)("Mercatura transaction API integration", () =
       expect(body.inputs[0]?.witness).toHaveLength(2);
 
       for (const output of body.outputs) {
-        expect(output.spentBy).toBeNull();
+        if (output.spentBy !== null) {
+          expect(output.spentBy.txid).toMatch(/^[0-9a-f]{64}$/);
+          expect(Number.isSafeInteger(output.spentBy.vin)).toBe(true);
+          expect(output.spentBy.vin).toBeGreaterThanOrEqual(0);
+        }
       }
     } finally {
       await app.close();
