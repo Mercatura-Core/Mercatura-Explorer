@@ -104,6 +104,20 @@ export function SiteHeader() {
           <HeaderActions />
         </div>
       </div>
+
+      {network === "testnet" ? (
+        <div className="border-t border-[#551c1c] bg-[#170909]">
+          <div className="mx-auto max-w-[1540px] px-5 py-2 text-center sm:px-8">
+            <p className="text-[11px] font-medium tracking-[0.02em] text-[#e97878] sm:text-xs">
+              <span className="font-bold uppercase tracking-[0.12em] text-[#ff8585]">
+                Testnet
+              </span>
+              <span className="mx-2 text-[#843737]">•</span>
+              Test MCA has no monetary value and is intended for testing only.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }
