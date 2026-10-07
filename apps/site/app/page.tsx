@@ -1,7 +1,7 @@
 import Image from "next/image";
 
 const explorerUrl =
-  process.env.NEXT_PUBLIC_EXPLORER_URL ?? "/explorer";
+  process.env.NEXT_PUBLIC_EXPLORER_URL ?? "https://explorer.mercaturacore.com";
 
 const githubUrl = "https://github.com/Mercatura-Core";
 
