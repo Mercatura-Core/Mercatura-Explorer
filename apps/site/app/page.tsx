@@ -5,6 +5,33 @@ const explorerUrl =
 
 const githubUrl = "https://github.com/Mercatura-Core";
 
+const coreReleaseUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.0-testnet1";
+
+const coreWindowsInstallerUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-win64-setup.exe";
+
+const coreWindowsZipUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-win64.zip";
+
+const coreLinuxUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-linux-x86_64.tar.gz";
+
+const coreMacArm64Url =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-macos-arm64.zip";
+
+const coreChecksumsUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/SHA256SUMS";
+
+const minerReleaseUrl =
+  "https://github.com/Mercatura-Core/MercaMiner/releases/tag/v0.1.0-testnet2";
+
+const minerLinuxUrl =
+  "https://github.com/Mercatura-Core/MercaMiner/releases/download/v0.1.0-testnet2/MercaMiner-v0.1.0-testnet2-linux-x86_64.tar.gz";
+
+const minerChecksumsUrl =
+  "https://github.com/Mercatura-Core/MercaMiner/releases/download/v0.1.0-testnet2/SHA256SUMS";
+
 const features = [
   {
     mark: "MH",
@@ -491,7 +518,7 @@ export default function Home() {
           <SectionHeading
             eyebrow="Downloads"
             title="Official Mercatura software."
-            description="Testnet release packages, checksums, and release notes will be linked here once the first public Testnet build is published."
+            description="Public Testnet release packages are available below. Verify every download against the published SHA-256 checksums before use."
           />
 
           <div className="mt-10 grid gap-4 lg:grid-cols-2">
@@ -510,7 +537,7 @@ export default function Home() {
               </p>
 
               <div className="mt-7 flex flex-wrap gap-2">
-                {["Windows", "Linux", "macOS"].map((platform) => (
+                {["Windows x86-64", "Linux x86-64", "macOS ARM64"].map((platform) => (
                   <span
                     key={platform}
                     className="rounded-md border border-[#34342f] bg-[#101211] px-3 py-1.5 text-xs text-[#9c9d99]"
@@ -520,9 +547,65 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="mt-8 border-t border-[#292923] pt-6 text-sm text-[#726f67]">
-                Public Testnet package pending.
+              <div className="mt-8 grid gap-2 border-t border-[#292923] pt-6 sm:grid-cols-2">
+                <a
+                  href={coreWindowsInstallerUrl}
+                  className="inline-flex min-h-[44px] items-center justify-between gap-3 rounded-lg border border-[#5a431d] bg-[#12110d] px-4 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
+                >
+                  Windows Installer
+                  <ArrowIcon />
+                </a>
+
+                <a
+                  href={coreWindowsZipUrl}
+                  className="inline-flex min-h-[44px] items-center justify-between gap-3 rounded-lg border border-[#3d3e38] bg-[#0e100f] px-4 text-sm font-medium text-[#c5c6c2] transition hover:border-[#62635c] hover:text-white"
+                >
+                  Windows Portable ZIP
+                  <ArrowIcon />
+                </a>
+
+                <a
+                  href={coreLinuxUrl}
+                  className="inline-flex min-h-[44px] items-center justify-between gap-3 rounded-lg border border-[#5a431d] bg-[#12110d] px-4 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
+                >
+                  Linux x86-64
+                  <ArrowIcon />
+                </a>
+
+                <a
+                  href={coreMacArm64Url}
+                  className="inline-flex min-h-[44px] items-center justify-between gap-3 rounded-lg border border-[#3d3e38] bg-[#0e100f] px-4 text-sm font-medium text-[#c5c6c2] transition hover:border-[#62635c] hover:text-white"
+                >
+                  macOS ARM64
+                  <ArrowIcon />
+                </a>
               </div>
+
+              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                <a
+                  href={coreReleaseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
+                >
+                  Release notes
+                  <ExternalIcon />
+                </a>
+
+                <a
+                  href={coreChecksumsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
+                >
+                  SHA256SUMS
+                  <ExternalIcon />
+                </a>
+              </div>
+
+              <p className="mt-5 text-xs leading-6 text-[#696b67]">
+                The macOS build is for Apple Silicon and is not currently notarized.
+              </p>
             </article>
 
             <article className="gold-panel rounded-[12px] p-6 sm:p-8">
@@ -541,7 +624,7 @@ export default function Home() {
               </p>
 
               <div className="mt-7 flex flex-wrap gap-2">
-                {["Linux x86-64", "Testnet"].map((platform) => (
+                {["Linux x86-64", "Public Testnet"].map((platform) => (
                   <span
                     key={platform}
                     className="rounded-md border border-[#34342f] bg-[#101211] px-3 py-1.5 text-xs text-[#9c9d99]"
@@ -551,9 +634,41 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="mt-8 border-t border-[#292923] pt-6 text-sm text-[#726f67]">
-                Public Testnet package pending.
+              <div className="mt-8 border-t border-[#292923] pt-6">
+                <a
+                  href={minerLinuxUrl}
+                  className="inline-flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border border-[#5a431d] bg-[#12110d] px-4 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
+                >
+                  Download Linux x86-64
+                  <ArrowIcon />
+                </a>
               </div>
+
+              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                <a
+                  href={minerReleaseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
+                >
+                  Release notes
+                  <ExternalIcon />
+                </a>
+
+                <a
+                  href={minerChecksumsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
+                >
+                  SHA256SUMS
+                  <ExternalIcon />
+                </a>
+              </div>
+
+              <p className="mt-5 text-xs leading-6 text-[#696b67]">
+                Reference MercaHash V1 CPU miner for the Mercatura Public Testnet.
+              </p>
             </article>
           </div>
         </div>
@@ -572,13 +687,13 @@ export default function Home() {
                 </div>
 
                 <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-[#f2f2ef]">
-                  Preparing the public Mercatura Testnet.
+                  Mercatura Public Testnet is live.
                 </h2>
 
                 <p className="mt-5 max-w-2xl text-sm leading-7 text-[#939490] sm:text-[15px]">
-                  The first public network will be used for distributed node,
+                  The public network is now available for distributed node,
                   wallet, mining, peer-to-peer, Explorer, and operational
-                  validation before Mainnet.
+                  validation ahead of Mainnet.
                 </p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
@@ -961,9 +1076,9 @@ export default function Home() {
                 name: "BitcoinTalk",
                 description:
                   "Project history, technical discussion, and long-form community record.",
-                href: null,
-                icon: null,
-                status: "Coming soon",
+                href: "https://bitcointalk.org/index.php?topic=5595967.0",
+                icon: "/social/bitcointalk.ico",
+                status: "Visit",
               },
             ].map((social) =>
               social.href ? (
