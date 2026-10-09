@@ -6,22 +6,22 @@ const explorerUrl =
 const githubUrl = "https://github.com/Mercatura-Core";
 
 const coreReleaseUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.0-testnet1";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.1-testnet";
 
 const coreWindowsInstallerUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-win64-setup.exe";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-win64-setup.exe";
 
 const coreWindowsZipUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-win64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-win64.zip";
 
 const coreLinuxUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-linux-x86_64.tar.gz";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-linux-x86_64.tar.gz";
 
 const coreMacArm64Url =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/Mercatura-Core-v0.1.0-testnet1-macos-arm64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-macos-arm64.zip";
 
 const coreChecksumsUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.0-testnet1/SHA256SUMS";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/SHA256SUMS";
 
 const minerReleaseUrl =
   "https://github.com/Mercatura-Core/MercaMiner/releases/tag/v0.1.0-testnet2";

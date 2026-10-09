@@ -19,7 +19,7 @@ Mercatura's public testnet is live.
 - Website: https://mercaturacore.com
 - Explorer: https://explorer.mercaturacore.com/?network=testnet
 - Bootstrap peer: `node1.mercaturacore.com:27778`
-- Mercatura Core release: https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.0-testnet1
+- Mercatura Core release: https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.1-testnet
 - MercaMiner release: https://github.com/Mercatura-Core/MercaMiner/releases/tag/v0.1.0-testnet2
 
 **Testnet MCA is for testing only and has no monetary value.**
