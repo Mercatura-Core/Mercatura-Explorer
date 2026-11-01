@@ -6,31 +6,22 @@ const explorerUrl =
 const githubUrl = "https://github.com/Mercatura-Core";
 
 const coreReleaseUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.1-testnet";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.3-testnet";
 
 const coreWindowsInstallerUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-win64-setup.exe";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-win64-setup.exe";
 
 const coreWindowsZipUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-win64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-win64.zip";
 
 const coreLinuxUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-linux-x86_64.tar.gz";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-linux-x86_64.tar.gz";
 
 const coreMacArm64Url =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/Mercatura-Core-v0.1.1-testnet-macos-arm64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-macos-arm64.zip";
 
 const coreChecksumsUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.1-testnet/SHA256SUMS";
-
-const minerReleaseUrl =
-  "https://github.com/Mercatura-Core/MercaMiner/releases/tag/v0.1.0-testnet2";
-
-const minerLinuxUrl =
-  "https://github.com/Mercatura-Core/MercaMiner/releases/download/v0.1.0-testnet2/MercaMiner-v0.1.0-testnet2-linux-x86_64.tar.gz";
-
-const minerChecksumsUrl =
-  "https://github.com/Mercatura-Core/MercaMiner/releases/download/v0.1.0-testnet2/SHA256SUMS";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/SHA256SUMS";
 
 const features = [
   {
@@ -44,6 +35,12 @@ const features = [
     title: "Post-Quantum Ownership",
     description:
       "ML-DSA-65 is Mercatura's native transaction-authorization path from genesis rather than an optional secondary feature.",
+  },
+  {
+    mark: "NET",
+    title: "Post-Quantum Node Communications",
+    description:
+      "Mandatory PQ-v1 encrypted and authenticated P2P connections using ML-KEM-768 and ML-DSA-65.",
   },
   {
     mark: "SP",
@@ -62,13 +59,16 @@ const features = [
 const coinSpecs = [
   ["Ticker", "MCA"],
   ["Consensus", "Proof of Work"],
-  ["Mining Algorithm", "MercaHash V1"],
+  ["Mining Algorithm", "V1 to V2 at block 17,000"],
   ["Native Ownership", "ML-DSA-65"],
+  ["P2P Transport", "PQ-v1 (mandatory testnet)"],
+  ["P2P Key Establishment", "ML-KEM-768"],
+  ["P2P Authentication", "ML-DSA-65"],
   ["Emission", "Bootstrap → SP-LT adaptive"],
   ["Block Target", "150 seconds"],
   ["Difficulty", "DGWv3 · every block"],
   ["Monetary Precision", "2 decimals"],
-  ["Initial Block Cap", "1 MiB"],
+  ["Current Testnet Block Cap", "4 MiB"],
   ["Capacity Interval", "1,051,200 blocks · ~5 years"],
   ["Capacity Growth", "2× each interval"],
   ["Scheduled Maximum", "1024 MiB"],
@@ -390,7 +390,7 @@ export default function Home() {
                 href="#downloads"
                 className="inline-flex min-h-[46px] items-center gap-2 rounded-lg border-[3px] border-[#5a431d] bg-[#11120f]/95 px-5 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
               >
-                Download MercaMiner
+                Mine with Mercatura Qt
               </a>
 
               <a
@@ -444,7 +444,7 @@ export default function Home() {
         <div className="mx-auto max-w-[1540px] px-5 py-20 sm:px-8 lg:py-24">
           <SectionHeading
             eyebrow="Core technology"
-            title="Four foundations of the Mercatura network."
+            title="Five foundations of the Mercatura network."
             description="The landing page keeps the overview concise. Full technical specifications will live in the documentation."
           />
 
@@ -610,21 +610,21 @@ export default function Home() {
 
             <article className="gold-panel rounded-[12px] p-6 sm:p-8">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b28734]">
-                CPU Miner
+                Integrated Mining
               </div>
 
               <h3 className="mt-3 text-2xl font-semibold text-[#f0f0ed]">
-                MercaMiner
+                Native Solo Mining
               </h3>
 
               <p className="mt-4 max-w-xl text-sm leading-7 text-[#8e8f8c]">
-                Mercatura's reference CPU miner for MercaHash, with solo RPC
-                mining, continuous operation, stale-work handling, and network
-                validation.
+                Mine directly in Mercatura Core Qt using your existing full node
+                and post-quantum wallet. CPU solo mining is built in, with
+                experimental GPU support on compatible builds.
               </p>
 
               <div className="mt-7 flex flex-wrap gap-2">
-                {["Linux x86-64", "Public Testnet"].map((platform) => (
+                {["CPU Solo Mining", "Experimental GPU"].map((platform) => (
                   <span
                     key={platform}
                     className="rounded-md border border-[#34342f] bg-[#101211] px-3 py-1.5 text-xs text-[#9c9d99]"
@@ -636,17 +636,17 @@ export default function Home() {
 
               <div className="mt-8 border-t border-[#292923] pt-6">
                 <a
-                  href={minerLinuxUrl}
+                  href={coreReleaseUrl}
                   className="inline-flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border border-[#5a431d] bg-[#12110d] px-4 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
                 >
-                  Download Linux x86-64
+                  Get Mercatura Core Qt
                   <ArrowIcon />
                 </a>
               </div>
 
               <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs">
                 <a
-                  href={minerReleaseUrl}
+                  href={coreReleaseUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
@@ -656,7 +656,7 @@ export default function Home() {
                 </a>
 
                 <a
-                  href={minerChecksumsUrl}
+                  href={coreChecksumsUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-[#b88932] transition hover:text-[#efbd55]"
@@ -667,7 +667,7 @@ export default function Home() {
               </div>
 
               <p className="mt-5 text-xs leading-6 text-[#696b67]">
-                Reference MercaHash V1 CPU miner for the Mercatura Public Testnet.
+                No separate mining application or blockchain copy required. GPU support is experimental.
               </p>
             </article>
           </div>
@@ -779,12 +779,6 @@ export default function Home() {
                 description:
                   "Create, secure, back up, receive, send, and restore a Mercatura wallet.",
                 href: "/docs/mercatura-qt-wallet-guide.pdf",
-              },
-              {
-                title: "MercaMiner Guide",
-                description:
-                  "Build, configure, benchmark, monitor, and run the reference CPU miner.",
-                href: "/docs/mercaminer-running-guide.pdf",
               },
             ].map((document) => (
               <a
@@ -1068,7 +1062,7 @@ export default function Home() {
                 name: "Discord",
                 description:
                   "Technical help, guides, troubleshooting, and support.",
-                href: "https://discord.gg/DJbwa9fRT",
+                href: "https://discord.gg/aYvFQ6yZAM",
                 icon: "/social/discord.svg",
                 status: "Join",
               },
