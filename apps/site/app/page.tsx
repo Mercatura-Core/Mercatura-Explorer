@@ -6,35 +6,41 @@ const explorerUrl =
 const githubUrl = "https://github.com/Mercatura-Core";
 
 const coreReleaseUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.3-testnet";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/tag/v0.1.4-testnet";
 
 const coreWindowsInstallerUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-win64-setup.exe";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/Mercatura-Core-v0.1.4-testnet-win64-setup.exe";
 
 const coreWindowsZipUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-win64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/Mercatura-Core-v0.1.4-testnet-win64.zip";
 
 const coreLinuxUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-linux-x86_64.tar.gz";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/Mercatura-Core-v0.1.4-testnet-linux-x86_64.tar.gz";
 
 const coreMacArm64Url =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/Mercatura-Core-v0.1.3-testnet-macos-arm64.zip";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/Mercatura-Core-v0.1.4-testnet-macos-arm64.zip";
 
 const coreChecksumsUrl =
-  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.3-testnet/SHA256SUMS";
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/SHA256SUMS";
+
+const coreWindowsCudaHotfixUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/Mercatura-Core-v0.1.4-Windows-CUDA-Hotfix-438f8a9.zip";
+
+const coreWindowsCudaHotfixChecksumsUrl =
+  "https://github.com/Mercatura-Core/Mercatura-Core/releases/download/v0.1.4-testnet/SHA256SUMS-Windows-CUDA-Hotfix.txt";
 
 const features = [
   {
     mark: "MH",
     title: "MercaHash",
     description:
-      "CPU-oriented proof of work built around a 128 MiB private mutable scratchpad and deterministic consensus rules.",
+      "MercaHash V2 activated on public testnet at block 17,000, reducing the scratchpad per worker from 128 MiB (V1) to 16 MiB (V2). The transition retained the existing blockchain without resetting genesis or difficulty.",
   },
   {
     mark: "PQ",
     title: "Post-Quantum Ownership",
     description:
-      "ML-DSA-65 is Mercatura's native transaction-authorization path from genesis rather than an optional secondary feature.",
+      "ML-DSA-65 witness-v2 ownership remains Mercatura's native transaction-authorization path from genesis. Development continues on MercaWeave, Mercatura's witness-v3 grouped post-quantum authorization work.",
   },
   {
     mark: "NET",
@@ -52,14 +58,14 @@ const features = [
     mark: "2×",
     title: "Scheduled Capacity Growth",
     description:
-      "Mercatura begins with a conservative 1 MiB effective block cap and doubles scheduled capacity roughly every five years.",
+      "Public-testnet block capacity is currently 4 MiB. Initial mainnet capacity is subject to final validation, with scheduled capacity doubling roughly every five years.",
   },
 ];
 
 const coinSpecs = [
   ["Ticker", "MCA"],
   ["Consensus", "Proof of Work"],
-  ["Mining Algorithm", "V1 to V2 at block 17,000"],
+  ["Mining Algorithm", "MercaHash V2 · active since block 17,000"],
   ["Native Ownership", "ML-DSA-65"],
   ["P2P Transport", "PQ-v1 (mandatory testnet)"],
   ["P2P Key Establishment", "ML-KEM-768"],
@@ -518,8 +524,58 @@ export default function Home() {
           <SectionHeading
             eyebrow="Downloads"
             title="Official Mercatura software."
-            description="Public Testnet release packages are available below. Verify every download against the published SHA-256 checksums before use."
+            description="Mercatura Core v0.1.4-testnet release packages are available below. Verify every download against the published SHA-256 checksums before use."
           />
+
+          <p className="mt-6 rounded-[10px] border border-[#493719] bg-[#0d0e0c] px-5 py-4 text-sm leading-7 text-[#d9aa45]">
+            Mainnet has not launched. Public-testnet software remains experimental.
+            Testnet MCA has no monetary value. Back up your wallet before upgrading.
+          </p>
+
+          <aside
+            aria-labelledby="windows-cuda-hotfix"
+            className="gold-panel mt-6 rounded-[12px] p-6 sm:p-8"
+          >
+            <h3 id="windows-cuda-hotfix" className="text-xl font-semibold text-[#e4b149]">
+              Windows NVIDIA CUDA hotfix — v0.1.4
+            </h3>
+            <p className="mt-4 text-sm leading-7 text-[#b6b7b3]">
+              The original v0.1.4 Windows installer and portable ZIP do not include
+              the subsequent CUDA performance correction. Existing Windows v0.1.4
+              NVIDIA CUDA users should apply the separate hotfix. This hotfix is
+              not a complete installer.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <a
+                href={coreWindowsCudaHotfixUrl}
+                className="inline-flex min-h-[44px] items-center gap-3 rounded-lg border border-[#5a431d] bg-[#12110d] px-4 text-sm font-medium text-[#d9aa45] transition hover:border-[#8e6726] hover:text-[#efbd55]"
+              >
+                Download CUDA Hotfix ZIP
+                <ArrowIcon />
+              </a>
+              <a
+                href={coreWindowsCudaHotfixChecksumsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[#b88932] transition hover:text-[#efbd55]"
+              >
+                Hotfix SHA256SUMS
+                <ExternalIcon />
+              </a>
+            </div>
+            <ol className="mt-5 list-decimal space-y-1 pl-5 text-sm leading-7 text-[#b6b7b3]">
+              <li>Stop mining and close Mercatura Core Qt.</li>
+              <li>Back up the wallet.</li>
+              <li>Download and extract the hotfix ZIP.</li>
+              <li>Back up the original mercatura-qt.exe.</li>
+              <li>Replace only mercatura-qt.exe.</li>
+              <li>Restart Mercatura Core.</li>
+            </ol>
+            <p className="mt-5 text-sm font-semibold leading-7 text-[#e4b149]">
+              Do not delete wallet files, blockchain data, mercatura.conf, the
+              daemon, or the uninstaller. Replace only mercatura-qt.exe.
+            </p>
+          </aside>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-2">
             <article className="gold-panel rounded-[12px] p-6 sm:p-8">
@@ -619,12 +675,13 @@ export default function Home() {
 
               <p className="mt-4 max-w-xl text-sm leading-7 text-[#8e8f8c]">
                 Mine directly in Mercatura Core Qt using your existing full node
-                and post-quantum wallet. CPU solo mining is built in, with
-                experimental GPU support on compatible builds.
+                and post-quantum wallet, with native CPU, GPU, and combined
+                CPU+GPU mining. v0.1.4 improves CPU/GPU scheduling and coordination,
+                plus Windows AMD OpenCL device discovery.
               </p>
 
               <div className="mt-7 flex flex-wrap gap-2">
-                {["CPU Solo Mining", "Experimental GPU"].map((platform) => (
+                {["CPU Solo Mining", "Experimental GPU", "Combined CPU+GPU"].map((platform) => (
                   <span
                     key={platform}
                     className="rounded-md border border-[#34342f] bg-[#101211] px-3 py-1.5 text-xs text-[#9c9d99]"
@@ -632,6 +689,20 @@ export default function Home() {
                     {platform}
                   </span>
                 ))}
+              </div>
+
+              <div className="mt-6 text-sm leading-7 text-[#b6b7b3]">
+                <p className="font-semibold text-[#e4b149]">v0.1.4 mining performance</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>NVIDIA CUDA: +183.4% (2.83x) on tested RTX 3050 6GB.</li>
+                  <li>CPU mining: +31.6% (1.32x) on tested Ryzen 5 4600G.</li>
+                </ul>
+                <p className="mt-3 text-xs leading-6 text-[#8e8f8c]">
+                  Benchmarks used matched Linux/WSL2 testing. Actual performance
+                  varies by hardware, operating system, and mining conditions.
+                  Windows NVIDIA CUDA users need the separate hotfix above for
+                  the subsequent CUDA performance correction.
+                </p>
               </div>
 
               <div className="mt-8 border-t border-[#292923] pt-6">
