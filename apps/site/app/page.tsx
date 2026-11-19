@@ -397,9 +397,6 @@ export default function Home() {
                 </span>
               </time>
 
-              <p className="mt-2 text-sm leading-6 text-[#aaa9a6]">
-                December 1, 2026 at 13:00 Philippine Standard Time
-              </p>
 
               <p className="mt-4 text-base leading-7 text-[#b6b7b3]">
                 Mercatura (MCA) mainnet launch is scheduled. Final activation
