@@ -376,6 +376,41 @@ export default function Home() {
               Adaptive Issuance.
             </h1>
 
+            <section
+              aria-labelledby="mainnet-launch-heading"
+              className="gold-panel mt-8 max-w-2xl rounded-[12px] p-5 sm:p-6"
+            >
+              <h2
+                id="mainnet-launch-heading"
+                className="text-sm font-semibold uppercase tracking-[0.16em] text-[#e3ae43]"
+              >
+                MAINNET LAUNCH SCHEDULED
+              </h2>
+
+              <time
+                dateTime="2026-12-01T05:00:00Z"
+                className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-2xl font-semibold tracking-[-0.025em] text-[#f2f2ef] sm:text-3xl"
+              >
+                <span>December 1, 2026</span>
+                <span className="text-lg text-[#e3ae43] sm:text-xl">
+                  05:00 UTC
+                </span>
+              </time>
+
+              <p className="mt-2 text-sm leading-6 text-[#aaa9a6]">
+                December 1, 2026 at 13:00 Philippine Standard Time
+              </p>
+
+              <p className="mt-4 text-base leading-7 text-[#b6b7b3]">
+                Mercatura (MCA) mainnet launch is scheduled. Final activation
+                remains subject to consensus validation and network readiness.
+              </p>
+
+              <p className="mt-4 border-t border-[#493719] pt-4 text-sm leading-6 text-[#c99a3b]">
+                Public testnet is currently live. Mainnet is not yet live.
+              </p>
+            </section>
+
             <p className="mt-7 max-w-2xl text-base leading-8 text-[#aaa9a6] sm:text-lg">
               Mercatura is a CPU-oriented proof-of-work digital currency
               designed around native ML-DSA-65 authorization, the MercaHash mining
@@ -934,11 +969,11 @@ export default function Home() {
                   "Distributed node, wallet, mining, P2P, recovery, reorg, Explorer, and operational validation across independent systems and geographic regions.",
               },
               {
-                date: "Q4 2026",
-                title: "Mainnet Readiness",
-                status: "Next",
+                date: "December 1, 2026 · 05:00 UTC",
+                title: "Mainnet Launch",
+                status: "Scheduled",
                 description:
-                  "Resolve Testnet findings, finalize launch parameters, harden releases and infrastructure, complete documentation, and prepare the production network.",
+                  "Mercatura (MCA) mainnet launch is scheduled. Final activation remains subject to consensus validation and network readiness. Mainnet is not yet live.",
               },
               {
                 date: "Q1–Q2 2027",
