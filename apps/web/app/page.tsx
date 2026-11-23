@@ -364,6 +364,11 @@ export default async function Home({
       }>(network, "emission?limit=10&includeSpendable=false"),
 
       fetchExplorerApi<{
+        node: {
+          connectionsIn: number;
+          connectionsOut: number;
+          protocolVersion: number;
+        };
         peers: {
           reportedCount: number;
           publicCount: number;
@@ -847,10 +852,10 @@ export default async function Home({
           </article>
         </section>
 
-        <section className="mt-4 grid gap-4 xl:grid-cols-[1.12fr_0.88fr]">
+        <section className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
           <article
             id="network"
-            className="gold-panel-soft scroll-mt-24 overflow-hidden rounded-[10px]"
+            className="gold-panel-soft flex scroll-mt-24 flex-col overflow-hidden rounded-[10px]"
           >
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-2">
@@ -867,36 +872,50 @@ export default async function Home({
               </Link>
             </div>
 
-            <div className="grid gap-4 border-t border-[#27261f] px-5 py-5 sm:grid-cols-3">
-              <div className="contents">
-                <div>
-                  <p className="text-[11px] text-[#898a87]">Public Peers</p>
-                  <p className="mt-1 text-lg font-medium text-white">
-                    {networkOverview === null
-                      ? "Unavailable"
-                      : networkOverview.peers.publicCount.toLocaleString("en-US")}
+            <div className="grid min-h-[220px] flex-1 grid-cols-2 gap-px border-t border-[#27261f] bg-[#27261f] sm:grid-cols-3">
+              {[
+                {
+                  label: "Public Peers",
+                  value: networkOverview?.peers.publicCount,
+                  note: "Observed public connections",
+                },
+                {
+                  label: "Discovered Nodes",
+                  value: networkOverview?.discovered.publicCount,
+                  note: "Sampled public addresses",
+                },
+                {
+                  label: "Peer Versions",
+                  value: networkOverview?.distributions.peerVersions.length,
+                  note: "Connected software versions",
+                },
+                {
+                  label: "Inbound",
+                  value: networkOverview?.node.connectionsIn,
+                  note: "Explorer node connections",
+                },
+                {
+                  label: "Outbound",
+                  value: networkOverview?.node.connectionsOut,
+                  note: "Explorer node connections",
+                },
+                {
+                  label: "P2P Protocol",
+                  value: networkOverview?.node.protocolVersion,
+                  note: "Explorer node protocol",
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  className="flex min-h-[100px] min-w-0 flex-col justify-center bg-[#0c0d0c] px-5 py-4"
+                >
+                  <p className="text-[11px] text-[#898a87]">{metric.label}</p>
+                  <p className="mt-2 text-lg font-medium text-white">
+                    {metric.value === undefined ? "Unavailable" : metric.value.toLocaleString("en-US")}
                   </p>
+                  <p className="mt-1 text-[10px] text-[#6e706c]">{metric.note}</p>
                 </div>
-
-                <div className="sm:border-l sm:border-[#222421] sm:pl-4">
-                  <p className="text-[11px] text-[#898a87]">Discovered Nodes</p>
-                  <p className="mt-1 text-lg font-medium text-white">
-                    {networkOverview === null
-                      ? "Unavailable"
-                      : networkOverview.discovered.publicCount.toLocaleString("en-US")}
-                  </p>
-                </div>
-
-                <div className="sm:border-l sm:border-[#222421] sm:pl-4">
-                  <p className="text-[11px] text-[#898a87]">Peer Versions</p>
-                  <p className="mt-1 text-lg font-medium text-white">
-                    {networkOverview === null
-                      ? "Unavailable"
-                      : networkOverview.distributions.peerVersions.length.toLocaleString("en-US")}
-                  </p>
-                </div>
-              </div>
-
+              ))}
             </div>
           </article>
 
