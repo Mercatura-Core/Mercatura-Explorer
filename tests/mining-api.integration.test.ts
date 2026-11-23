@@ -162,6 +162,35 @@ describe.runIf(integrationEnabled)("Mercatura mining API integration", () => {
     });
   }
 
+  it("serves sampled history for all time-based windows", async () => {
+    const app = buildApi();
+    const db = createDatabase();
+    try {
+      const state = await db.selectFrom("chain_state")
+        .select(["tip_height", "tip_hash"]).where("id", "=", 1).executeTakeFirstOrThrow();
+      if (state.tip_height === null || state.tip_hash === null) {
+        throw new Error("Requires an indexed chain");
+      }
+      for (const window of ["4h", "1d", "3d", "7d", "30d", "90d", "180d", "365d", "all"]) {
+        const response = await app.inject({ method: "GET", url: `/api/v1/mining?window=${window}` });
+        expect(response.statusCode, `${window} should return data`).toBe(200);
+        const body = response.json<{
+          window: {requestedBlocks: number | null; actualBlocks: number};
+          history: Array<{height: number; subsidyBaseUnits: string}>;
+          summary: {averageHashrateHps: number | null};
+        }>();
+        expect(body.window.requestedBlocks).toBeNull();
+        expect(body.window.actualBlocks).toBeGreaterThan(0);
+        expect(body.history.length).toBeGreaterThan(0);
+        expect(body.history.length).toBeLessThanOrEqual(120);
+        expect(body.history.every((row) => Number.isSafeInteger(row.height))).toBe(true);
+      }
+    } finally {
+      await app.close();
+      await db.destroy();
+    }
+  });
+
   it("rejects unsupported mining windows", async () => {
     const app = buildApi();
 

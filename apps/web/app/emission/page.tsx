@@ -6,6 +6,9 @@ import {
   type ExplorerNetwork,
 } from "../../lib/explorer-network";
 import { fetchExplorerApi } from "../../lib/explorer-server-api";
+import { MINING_WINDOW_OPTIONS, parseMiningWindow } from "../../lib/mining-window";
+import { AxisLineChart } from "../../components/axis-line-chart";
+import { EmissionHistoryTable } from "../../components/emission-history-table";
 
 const BOOTSTRAP_END_HEIGHT = 311_040;
 const ADAPTIVE_START_HEIGHT = 311_041;
@@ -52,6 +55,9 @@ interface EmissionResponse {
 
   pagination: {
     limit: number;
+    page?: number;
+    totalItems?: number;
+    totalPages?: number;
     nextBeforeHeight: number | null;
   };
 }
@@ -92,26 +98,6 @@ function formatMca(value: string | bigint | null | undefined): string {
 
 function formatHeight(value: number | null | undefined): string {
   return value === null || value === undefined ? "Unavailable" : value.toLocaleString("en-US");
-}
-
-function formatUtcTime(value: string): string {
-  const unixSeconds = Number(value);
-
-  if (!Number.isFinite(unixSeconds)) {
-    return "Unavailable";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-    timeZoneName: "short",
-  }).format(new Date(unixSeconds * 1000));
 }
 
 function shortenHash(hash: string): string {
@@ -178,18 +164,6 @@ function networkHref(network: ExplorerNetwork, path: string): string {
   return `${path}?network=${network}`;
 }
 
-function historyHref(network: ExplorerNetwork, beforeHeight: number | null | undefined): string {
-  const params = new URLSearchParams({
-    network,
-  });
-
-  if (beforeHeight !== null && beforeHeight !== undefined) {
-    params.set("beforeHeight", String(beforeHeight));
-  }
-
-  return `/emission?${params.toString()}`;
-}
-
 function MetricCard({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <article className="gold-panel rounded-[10px] px-5 py-5">
@@ -206,95 +180,17 @@ function MetricCard({ label, value, note }: { label: string; value: string; note
   );
 }
 
-function SubsidyChart({ rows }: { rows: EmissionHistoryRow[] }) {
-  const chronological = [...rows].reverse();
-
-  if (chronological.length < 2) {
-    return (
-      <div className="flex min-h-[220px] items-center justify-center text-sm text-[#777975]">
-        More indexed history is required to draw the subsidy trend.
-      </div>
-    );
-  }
-
-  const values = chronological.map((row) => BigInt(row.subsidy_base_units));
-
-  const minimum = values.reduce((lowest, value) => (value < lowest ? value : lowest));
-
-  const maximum = values.reduce((highest, value) => (value > highest ? value : highest));
-
-  const range = maximum - minimum;
-
-  const width = 1000;
-  const height = 220;
-  const topPadding = 18;
-  const bottomPadding = 24;
-
-  const plotHeight = height - topPadding - bottomPadding;
-
-  const points = values
-    .map((value, index) => {
-      const x = chronological.length === 1 ? 0 : (index / (chronological.length - 1)) * width;
-
-      const ratio =
-        range === BigInt(0)
-          ? 0.5
-          : Number(((value - minimum) * BigInt(1000000)) / range) / 1_000_000;
-
-      const y = topPadding + (1 - ratio) * plotHeight;
-
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
-
+function SubsidyChart({ rows }: { rows: Array<{height: number; time: string; subsidyBaseUnits: string}> }) {
   return (
-    <div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Recent Mercatura block subsidy history"
-        className="h-[220px] w-full"
-        preserveAspectRatio="none"
-      >
-        <line x1="0" y1={topPadding} x2={width} y2={topPadding} stroke="#2b281f" />
-
-        <line
-          x1="0"
-          y1={topPadding + plotHeight / 2}
-          x2={width}
-          y2={topPadding + plotHeight / 2}
-          stroke="#211f19"
-        />
-
-        <line
-          x1="0"
-          y1={topPadding + plotHeight}
-          x2={width}
-          y2={topPadding + plotHeight}
-          stroke="#2b281f"
-        />
-
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#d8a33a"
-          strokeWidth="3"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#777975]">
-        <span>Oldest shown: block {chronological[0]?.height.toLocaleString("en-US") ?? "—"}</span>
-
-        <span>
-          Range: {formatMca(minimum)} – {formatMca(maximum)}
-        </span>
-
-        <span>
-          Newest shown: block {chronological.at(-1)?.height.toLocaleString("en-US") ?? "—"}
-        </span>
-      </div>
-    </div>
+    <AxisLineChart
+      points={[...rows].reverse().map((row) => ({
+        x: row.height,
+        y: Number(row.subsidyBaseUnits) / 100,
+        title: `Block ${row.height.toLocaleString("en-US")}: ${formatMca(row.subsidyBaseUnits)}`,
+      }))}
+      yLabel="Block subsidy (MCA)"
+      formatY={(value) => new Intl.NumberFormat("en-US", {maximumFractionDigits: 2}).format(value)}
+    />
   );
 }
 
@@ -304,6 +200,7 @@ export default async function EmissionPage({
   searchParams: Promise<{
     network?: string | string[];
     beforeHeight?: string | string[];
+    trend?: string | string[];
   }>;
 }) {
   const parameters = await searchParams;
@@ -313,11 +210,18 @@ export default async function EmissionPage({
   const network = parseExplorerNetwork(requestedNetwork ?? DEFAULT_EXPLORER_NETWORK);
 
   const beforeHeight = parseBeforeHeight(singleParameter(parameters.beforeHeight));
+  const trendWindow = parseMiningWindow(parameters.trend);
 
-  const emission = await fetchExplorerApi<EmissionResponse>(
-    network,
-    `emission?limit=100${beforeHeight === undefined ? "" : `&beforeHeight=${beforeHeight}`}`
-  );
+  const [emission, miningTrend] = await Promise.all([
+    fetchExplorerApi<EmissionResponse>(
+      network,
+      "emission?limit=20"
+    ),
+    fetchExplorerApi<{
+      history: Array<{height: number; time: string; subsidyBaseUnits: string}>;
+      window: {actualBlocks: number};
+    }>(network, `mining?window=${trendWindow}`),
+  ]);
 
   const indexedHeight = emission?.chain.indexedHeight ?? null;
 
@@ -330,10 +234,9 @@ export default async function EmissionPage({
   const currentFees = emission?.current?.feesBaseUnits;
 
   const history = emission?.history ?? [];
+  const trendRows = miningTrend?.history ?? [];
 
-  const nextBeforeHeight = emission?.pagination.nextBeforeHeight ?? null;
 
-  const isHistoricalPage = beforeHeight !== undefined;
 
   return (
     <main className="min-h-screen pb-16">
@@ -566,120 +469,40 @@ export default async function EmissionPage({
               <h2 className="mt-2 text-xl font-semibold text-[#eeeeea]">Recent subsidy trend</h2>
 
               <p className="mt-2 text-xs leading-5 text-[#81827e]">
-                Latest indexed active-chain rows returned by the authoritative emission API.
+                Indexed active-chain subsidy history, sampled across the selected window.
               </p>
             </div>
 
-            <div className="text-right text-xs text-[#777975]">
-              {history.length.toLocaleString("en-US")} blocks shown
+            <div className="flex flex-wrap items-center gap-2">
+              {MINING_WINDOW_OPTIONS.map((option) => (
+                <Link key={option.value}
+                  href={`/emission?network=${network}&trend=${option.value}${beforeHeight === undefined ? "" : `&beforeHeight=${beforeHeight}`}`}
+                  className={`rounded border px-3 py-2 text-[11px] font-medium ${trendWindow === option.value ? "border-[#d8a33a] bg-[#d8a33a] text-[#15120b]" : "border-[#49371b] text-[#d5a13b] hover:text-white"}`}>
+                  {option.label}
+                </Link>
+              ))}
+              <span className="text-[11px] text-[#777975]">{miningTrend?.window.actualBlocks.toLocaleString("en-US") ?? "0"} blocks observed</span>
             </div>
           </div>
 
           <div className="mt-5 rounded-lg border border-[#26231a] bg-[#0a0b0a] p-4">
-            <SubsidyChart rows={history} />
+            {miningTrend === null ? (
+              <p className="py-10 text-center text-xs leading-6 text-[#b8aa8f]">
+                The selected API does not provide {trendWindow.toUpperCase()} historical Mining data.
+                A local frontend using the deployed API requires the updated backend to be deployed
+                or an up-to-date local API with its indexed database.
+              </p>
+            ) : (
+              <SubsidyChart rows={trendRows} />
+            )}
           </div>
         </section>
 
-        <section className="gold-panel mt-7 overflow-hidden rounded-[10px]">
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8d8e8a]">
-                Emission history
-              </div>
-
-              <h2 className="mt-2 text-xl font-semibold text-[#eeeeea]">Block-by-block issuance</h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {isHistoricalPage ? (
-                <Link
-                  href={historyHref(network, null)}
-                  className="rounded-md border border-[#45371e] px-3 py-2 text-xs font-medium text-[#c99a3d] transition hover:border-[#6b5227] hover:text-[#e8b650]"
-                >
-                  Newest history
-                </Link>
-              ) : null}
-
-              {nextBeforeHeight !== null ? (
-                <Link
-                  href={historyHref(network, nextBeforeHeight)}
-                  className="rounded-md border border-[#6a4e20] bg-[#17130b] px-3 py-2 text-xs font-medium text-[#d9a640] transition hover:border-[#8a682d] hover:text-[#efbd57]"
-                >
-                  Older history
-                </Link>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto px-4 pb-5 sm:px-5">
-            <table className="table-shell w-full min-w-[980px] border-collapse text-left">
-              <thead>
-                <tr className="bg-[#151717] text-[11px] text-[#90918f]">
-                  <th className="rounded-l-md px-3 py-2 font-normal">Height</th>
-
-                  <th className="px-3 py-2 font-normal">Mined At</th>
-
-                  <th className="px-3 py-2 font-normal">Subsidy</th>
-
-                  <th className="px-3 py-2 font-normal">Fees</th>
-
-                  <th className="px-3 py-2 font-normal">Coinbase Payout</th>
-
-                  <th className="px-3 py-2 font-normal">Actual Issuance</th>
-
-                  <th className="rounded-r-md px-3 py-2 font-normal">Cumulative Issued</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {history.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-3 py-12 text-center text-xs text-[#777975]">
-                      {networkLabel(network)} emission history is unavailable.
-                    </td>
-                  </tr>
-                ) : (
-                  history.map((row) => (
-                    <tr key={row.hash}>
-                      <td className="border-b border-[#242625] px-3 py-3">
-                        <Link
-                          href={`/block/${row.height}?network=${network}`}
-                          className="font-mono text-xs font-medium text-[#d8a33a] hover:text-[#edbe5b]"
-                        >
-                          {row.height.toLocaleString("en-US")}
-                        </Link>
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#9c9d99]">
-                        {formatUtcTime(row.time)}
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs font-medium text-[#d8a33a]">
-                        {formatMca(row.subsidy_base_units)}
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#b8b9b5]">
-                        {formatMca(row.total_fee_base_units)}
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#b8b9b5]">
-                        {formatMca(row.coinbase_payout_base_units)}
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#d2d2ce]">
-                        {formatMca(row.actual_issuance_base_units)}
-                      </td>
-
-                      <td className="border-b border-[#242625] px-3 py-3 text-xs text-[#d2d2ce]">
-                        {formatMca(row.cumulative_issued_base_units)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <EmissionHistoryTable
+          network={network}
+          initialRows={history}
+          totalItems={emission?.pagination.totalItems ?? (indexedHeight === null ? 0 : indexedHeight + 1)}
+        />
       </div>
     </main>
   );

@@ -301,10 +301,10 @@ export default async function TransactionDetailPage({
             </div>
 
             <Link
-              href={`/pq?network=${network}`}
+              href={`/statistics?network=${network}`}
               className="text-xs font-medium text-[#d8a33a] hover:text-[#edbe5b]"
             >
-              PQ Network Overview →
+              Witness Version Statistics →
             </Link>
           </div>
 

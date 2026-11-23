@@ -1,49 +1,14 @@
 import Link from "next/link";
 
-import { NetworkCountryMap, type NetworkCountry } from "../../components/network-country-map";
+import { DiscoveredNodesTable, type DiscoveredNode } from "../../components/discovered-nodes-table";
+import { PublicConnectedPeersTable, type PublicPeer } from "../../components/public-connected-peers-table";
 import { parseExplorerNetwork } from "../../lib/explorer-network";
 import { fetchExplorerApi } from "../../lib/explorer-server-api";
 import {
-  formatNetworkEndpoint,
   formatNetworkName,
   formatPeerSoftware,
 } from "../../lib/network-presentation";
 
-type PublicPeer = {
-  address: string;
-  port: number | null;
-  network: string;
-  services: string[];
-  version: number;
-  subversion: string;
-  inbound: boolean;
-  connectionType: string;
-  transportProtocol: string;
-  connectedSince: number;
-  lastSend: number;
-  lastReceive: number;
-  lastTransaction: number;
-  lastBlock: number;
-  bytesSent: number;
-  bytesReceived: number;
-  pingSeconds: number | null;
-  minimumPingSeconds: number | null;
-  syncedHeaders: number;
-  syncedBlocks: number;
-  mappedAs: number | null;
-  geolocationEligible: boolean;
-  location: unknown;
-};
-
-type DiscoveredNode = {
-  address: string;
-  port: number;
-  network: string;
-  lastSeen: number;
-  services: number;
-  geolocationEligible: boolean;
-  location: unknown;
-};
 
 type NetworkResponse = {
   node: {
@@ -84,72 +49,20 @@ type NetworkResponse = {
       count: number;
     }>;
   };
-  geolocation: {
-    providerConfigured: boolean;
-    provider: string | null;
-    eligibleAddressCount: number;
-    locatedAddressCount: number;
-    countries: NetworkCountry[];
-  };
 };
+
+function formatCoreBuild(version: number): string {
+  if (!Number.isSafeInteger(version) || version < 0) return "Unavailable";
+  const major = Math.floor(version / 10000);
+  const minor = Math.floor((version % 10000) / 100);
+  const patch = version % 100;
+  return `${major}.${minor}.${patch} (build ${version})`;
+}
 
 function formatInteger(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-function formatBytes(value: number): string {
-  if (!Number.isFinite(value) || value < 0) {
-    return "Unavailable";
-  }
-
-  if (value < 1024) {
-    return `${value.toLocaleString("en-US")} B`;
-  }
-
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KiB`;
-  }
-
-  if (value < 1024 * 1024 * 1024) {
-    return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
-  }
-
-  return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
-}
-
-function formatPing(seconds: number | null): string {
-  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) {
-    return "Unavailable";
-  }
-
-  return `${(seconds * 1000).toFixed(seconds < 0.1 ? 1 : 0)} ms`;
-}
-
-function formatRelativeUnixTime(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) {
-    return "Unavailable";
-  }
-
-  const elapsed = Math.max(0, Math.floor(Date.now() / 1000 - value));
-
-  if (elapsed < 60) {
-    return `${elapsed}s ago`;
-  }
-
-  const minutes = Math.floor(elapsed / 60);
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 function DistributionBars({
   rows,
@@ -211,14 +124,8 @@ export default async function NetworkPage({
 
   const network = await fetchExplorerApi<NetworkResponse>(networkName, "network");
 
-  const visiblePeers = network?.peers.items.slice(0, 50) ?? [];
-
   const visibleDiscovered =
-    network === null
-      ? []
-      : [...network.discovered.items]
-          .sort((left, right) => right.lastSeen - left.lastSeen)
-          .slice(0, 50);
+    network === null ? [] : [...network.discovered.items].sort((left, right) => right.lastSeen - left.lastSeen);
 
   const versionTotal =
     network?.distributions.peerVersions.reduce((total, row) => total + row.count, 0) ?? 0;
@@ -288,7 +195,7 @@ export default async function NetworkPage({
             </p>
           </div>
         ) : (
-          <div className="grid gap-px bg-[#25251f] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-px bg-[#25251f] sm:grid-cols-2 lg:grid-cols-5">
             {[
               {
                 label: "Public Peers",
@@ -315,13 +222,6 @@ export default async function NetworkPage({
                 value: formatInteger(network.node.connectionsOut),
                 note: "Current connections",
               },
-              {
-                label: "Geo Eligible",
-                value: formatInteger(network.geolocation.eligibleAddressCount),
-                note: network.geolocation.providerConfigured
-                  ? "Provider configured"
-                  : "Provider pending",
-              },
             ].map((metric) => (
               <div key={metric.label} className="bg-[#0b0c0b] px-5 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">
@@ -339,7 +239,7 @@ export default async function NetworkPage({
 
       {network !== null && (
         <>
-          <section className="mt-4 grid gap-4 xl:grid-cols-[0.7fr_1.3fr]">
+          <section className="mt-4">
             <article className="gold-panel overflow-hidden rounded-[10px]">
               <div className="border-b border-[#292820] px-5 py-4">
                 <h2 className="text-[15px] font-semibold text-[#efefec]">Explorer Node</h2>
@@ -352,8 +252,8 @@ export default async function NetworkPage({
                 {[
                   ["Network Active", network.node.networkActive ? "Yes" : "No"],
                   ["Software", formatPeerSoftware(network.node.subversion)],
-                  ["Core Version", network.node.version.toLocaleString("en-US")],
-                  ["Protocol Version", network.node.protocolVersion.toLocaleString("en-US")],
+                  ["Core build (reported)", formatCoreBuild(network.node.version)],
+                  ["P2P protocol (reported)", network.node.protocolVersion.toLocaleString("en-US")],
                   ["Connections", network.node.connections.toLocaleString("en-US")],
                   [
                     "Inbound / Outbound",
@@ -368,61 +268,12 @@ export default async function NetworkPage({
                   </div>
                 ))}
               </dl>
+              <p className="border-t border-[#24251f] px-5 py-3 text-[11px] leading-5 text-[#777975]">
+                Core build and P2P protocol are compatibility identifiers reported by the node;
+                neither is the Mercatura public release version.
+              </p>
             </article>
 
-            <article className="gold-panel overflow-hidden rounded-[10px]">
-              <div className="border-b border-[#292820] px-5 py-4">
-                <h2 className="text-[15px] font-semibold text-[#efefec]">
-                  Geographic Distribution
-                </h2>
-                <p className="mt-1 text-xs text-[#777975]">Public IPv4/IPv6 observations only</p>
-              </div>
-
-              <div className="p-4">
-                <NetworkCountryMap
-                  countries={network.geolocation.countries}
-                  locatedAddressCount={network.geolocation.locatedAddressCount}
-                />
-
-                <p className="mt-3 text-[10px] leading-4 text-[#666862]">
-                  Country shading reflects geolocated public observations. GeoLite Data created by
-                  MaxMind. Country boundaries from Natural Earth; TopoJSON packaging © 2026 Alex
-                  Rembish under{" "}
-                  <a
-                    href="https://creativecommons.org/licenses/by/4.0/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#8f7138] hover:text-[#d8a33a]"
-                  >
-                    CC BY 4.0
-                  </a>
-                  .
-                </p>
-
-                <div className="mt-4 border-t border-[#292820] pt-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#b78b35]">
-                    Approximate Country Distribution
-                  </h3>
-                  <p className="mt-1 text-[11px] leading-5 text-[#777975]">
-                    Deduplicated public IPv4/IPv6 endpoints with available geographic data.
-                  </p>
-
-                  <div className="mt-3 overflow-hidden rounded-[8px] border border-[#292a24]">
-                    <DistributionBars
-                      rows={network.geolocation.countries.map((row) => ({
-                        label: row.countryName,
-                        count: row.count,
-                      }))}
-                      total={network.geolocation.countries.reduce(
-                        (total, row) => total + row.count,
-                        0
-                      )}
-                      emptyText="No geolocated public network observations are available."
-                    />
-                  </div>
-                </div>
-              </div>
-            </article>
           </section>
 
           <section className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -465,166 +316,15 @@ export default async function NetworkPage({
             </article>
           </section>
 
-          <section className="gold-panel mt-4 overflow-hidden rounded-[10px]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#292820] px-5 py-4">
-              <div>
-                <h2 className="text-[15px] font-semibold text-[#efefec]">Public Connected Peers</h2>
-                <p className="mt-1 text-xs text-[#777975]">
-                  Local and private endpoints have already been removed
-                </p>
-              </div>
+          <PublicConnectedPeersTable
+            peers={network.peers.items}
+            publicCount={network.peers.publicCount}
+          />
 
-              <span className="text-xs text-[#858783]">
-                Showing {visiblePeers.length.toLocaleString("en-US")} of{" "}
-                {network.peers.publicCount.toLocaleString("en-US")}
-              </span>
-            </div>
-
-            {visiblePeers.length === 0 ? (
-              <div className="px-5 py-10 text-center text-xs text-[#777975]">
-                No public connected peers are currently observable.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1200px] text-left">
-                  <thead className="bg-[#101210] text-[10px] uppercase tracking-[0.08em] text-[#777975]">
-                    <tr>
-                      <th className="px-5 py-3 font-medium">Endpoint</th>
-                      <th className="px-5 py-3 font-medium">Network</th>
-                      <th className="px-5 py-3 font-medium">Software</th>
-                      <th className="px-5 py-3 font-medium">Direction</th>
-                      <th className="px-5 py-3 font-medium">Connection</th>
-                      <th className="px-5 py-3 font-medium">Transport</th>
-                      <th className="px-5 py-3 font-medium">Ping</th>
-                      <th className="px-5 py-3 font-medium">Synced</th>
-                      <th className="px-5 py-3 font-medium">Traffic</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {visiblePeers.map((peer) => (
-                      <tr
-                        key={`${peer.network}:${peer.address}:${peer.port ?? "none"}`}
-                        className="border-t border-[#24251f]"
-                      >
-                        <td
-                          className="px-5 py-3 font-mono text-xs text-[#d8a33a]"
-                          title={formatNetworkEndpoint(peer.address, peer.port)}
-                        >
-                          {formatNetworkEndpoint(peer.address, peer.port)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#c5c6c1]">
-                          {formatNetworkName(peer.network)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#c5c6c1]" title={peer.subversion}>
-                          {formatPeerSoftware(peer.subversion)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {peer.inbound ? "Inbound" : "Outbound"}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">{peer.connectionType}</td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {peer.transportProtocol}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {formatPing(peer.pingSeconds)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {peer.syncedBlocks.toLocaleString("en-US")} blocks
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          ↑ {formatBytes(peer.bytesSent)}
-                          <br />↓ {formatBytes(peer.bytesReceived)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="gold-panel mt-4 overflow-hidden rounded-[10px]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#292820] px-5 py-4">
-              <div>
-                <h2 className="text-[15px] font-semibold text-[#efefec]">
-                  Public Discovered Nodes
-                </h2>
-                <p className="mt-1 text-xs text-[#777975]">
-                  Most recently seen public addresses from the bounded Core sample
-                </p>
-              </div>
-
-              <span className="text-xs text-[#858783]">
-                Showing {visibleDiscovered.length.toLocaleString("en-US")} of{" "}
-                {network.discovered.publicCount.toLocaleString("en-US")} sampled public
-              </span>
-            </div>
-
-            {visibleDiscovered.length === 0 ? (
-              <div className="px-5 py-10 text-center text-xs text-[#777975]">
-                No public discovered nodes are currently observable.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[850px] text-left">
-                  <thead className="bg-[#101210] text-[10px] uppercase tracking-[0.08em] text-[#777975]">
-                    <tr>
-                      <th className="px-5 py-3 font-medium">Endpoint</th>
-                      <th className="px-5 py-3 font-medium">Network</th>
-                      <th className="px-5 py-3 font-medium">Last Seen</th>
-                      <th className="px-5 py-3 font-medium">Services</th>
-                      <th className="px-5 py-3 font-medium">Geolocation</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {visibleDiscovered.map((node) => (
-                      <tr
-                        key={`${node.network}:${node.address}:${node.port}`}
-                        className="border-t border-[#24251f]"
-                      >
-                        <td
-                          className="px-5 py-3 font-mono text-xs text-[#d8a33a]"
-                          title={formatNetworkEndpoint(node.address, node.port)}
-                        >
-                          {formatNetworkEndpoint(node.address, node.port)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#c5c6c1]">
-                          {formatNetworkName(node.network)}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {formatRelativeUnixTime(node.lastSeen)}
-                        </td>
-
-                        <td className="px-5 py-3 font-mono text-xs text-[#9b9d98]">
-                          {node.services.toLocaleString("en-US")}
-                        </td>
-
-                        <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                          {node.geolocationEligible
-                            ? network.geolocation.providerConfigured
-                              ? "Eligible"
-                              : "Eligible · provider pending"
-                            : "Not IP-geolocatable"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+          <DiscoveredNodesTable
+            nodes={visibleDiscovered}
+            publicCount={network.discovered.publicCount}
+          />
 
           <section className="gold-panel mt-4 overflow-hidden rounded-[10px]">
             <div className="border-b border-[#292820] px-5 py-4">

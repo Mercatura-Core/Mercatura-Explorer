@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { NetworkCountryMap, type NetworkCountry } from "../components/network-country-map";
+import { CoreLiveMetric } from "../components/core-live-metric";
 import { fetchExplorerApi } from "../lib/explorer-server-api";
 import { parseExplorerNetwork } from "../lib/explorer-network";
+import { DEFAULT_MINING_WINDOW } from "../lib/mining-window";
 
 type MetricIconName = "block" | "hashrate" | "difficulty" | "supply" | "reward";
 
@@ -18,14 +19,14 @@ const metricDefinitions: {
     note: "Indexed chain tip",
   },
   {
-    label: "Network Hashrate",
+    label: "Current Hashrate",
     icon: "hashrate",
-    note: "Estimated from chain",
+    note: "Latest Core-reported estimate",
   },
   {
     label: "Difficulty",
     icon: "difficulty",
-    note: "DGWv3 current target",
+    note: "Current active chain tip",
   },
   {
     label: "Circulating Supply",
@@ -381,12 +382,6 @@ export default async function Home({
             count: number;
           }>;
         };
-        geolocation: {
-          providerConfigured: boolean;
-          eligibleAddressCount: number;
-          locatedAddressCount: number;
-          countries: NetworkCountry[];
-        };
       }>(network, "network"),
 
       fetchExplorerApi<{
@@ -407,7 +402,7 @@ export default async function Home({
           blocks: number;
           sharePercent: number;
         }>;
-      }>(network, "mining?window=144"),
+      }>(network, `mining?window=${DEFAULT_MINING_WINDOW}`),
 
       searchQuery.length > 0 && !searchQueryTooLong
         ? fetchExplorerApi<SearchResponse>(network, `search?q=${encodeURIComponent(searchQuery)}`)
@@ -427,31 +422,39 @@ export default async function Home({
   const latestBlocks = summary?.recentBlocks.slice(0, 5) ?? [];
   const recentTransactions = summary?.recentTransactions.slice(0, 5) ?? [];
 
-  const miningPalette = ["#e5b24c", "#b78a34", "#777a77", "#4e514f"];
+  // Match the Mining page: top ten identified payout addresses over its default 1D window,
+  // plus an Other slice only when additional or unidentified block payouts exist.
+  const miningPalette = [
+    "#e5b24c", "#c18a35", "#f0cf76", "#9f773c", "#ce9c72",
+    "#7b9b92", "#647e9c", "#af839d", "#74906e", "#b3aaa0", "#505651",
+  ];
   const rawMiningGroups = miningOverview?.payoutGroups ?? [];
+  const identifiedPayoutGroups = rawMiningGroups
+    .filter((group) => group.attribution === "pseudonymous" && group.payoutAddress !== null)
+    .sort((left, right) => right.blocks - left.blocks || left.payoutAddress!.localeCompare(right.payoutAddress!));
+  const topPayoutGroups = identifiedPayoutGroups.slice(0, 10);
+  const accountedBlocks = rawMiningGroups.reduce((sum, group) => sum + group.blocks, 0);
+  const topBlocks = topPayoutGroups.reduce((sum, group) => sum + group.blocks, 0);
+  const otherBlocks = Math.max(0, accountedBlocks - topBlocks);
+  const observedBlocks = miningOverview?.window.actualBlocks ?? 0;
 
-  const miningGroups = rawMiningGroups.slice(0, 3).map((group, index) => ({
-    key: group.payoutAddress ?? "unidentified",
-    label:
-      group.attribution === "unidentified" || group.payoutAddress === null
-        ? "Unidentified miner"
-        : shortenAddress(group.payoutAddress),
-    title: group.payoutAddress ?? "Unidentified miner",
+  const miningGroups = topPayoutGroups.map((group, index) => ({
+    key: group.payoutAddress!,
+    label: shortenAddress(group.payoutAddress!),
+    title: group.payoutAddress!,
     blocks: group.blocks,
     sharePercent: group.sharePercent,
     color: miningPalette[index]!,
   }));
 
-  if (rawMiningGroups.length > 3) {
-    const remaining = rawMiningGroups.slice(3);
-
+  if (otherBlocks > 0) {
     miningGroups.push({
       key: "other-observed-miners",
-      label: "Other observed miners",
-      title: "Other observed miners",
-      blocks: remaining.reduce((total, group) => total + group.blocks, 0),
-      sharePercent: remaining.reduce((total, group) => total + group.sharePercent, 0),
-      color: miningPalette[3]!,
+      label: "Other",
+      title: "Remaining payout addresses and unidentified block payouts",
+      blocks: otherBlocks,
+      sharePercent: observedBlocks > 0 ? otherBlocks * 100 / observedBlocks : 0,
+      color: miningPalette[10]!,
     });
   }
 
@@ -636,7 +639,11 @@ export default async function Home({
                   </p>
 
                   <div className="mt-2 truncate text-[17px] font-semibold text-[#e5b348]">
-                    {metricValues[index] ?? "Unavailable"}
+                    {index === 1 ? (
+                      <CoreLiveMetric network={network} kind="hashrate" initialValue={coreStatus?.mining.networkHashPerSecond ?? null} />
+                    ) : index === 2 ? (
+                      <CoreLiveMetric network={network} kind="difficulty" initialValue={coreStatus?.mining.difficulty ?? null} />
+                    ) : (metricValues[index] ?? "Unavailable")}
                   </div>
 
                   <p className="mt-2 truncate text-[11px] text-[#777875]">{metric.note}</p>
@@ -860,8 +867,8 @@ export default async function Home({
               </Link>
             </div>
 
-            <div className="grid min-h-[215px] md:grid-cols-[180px_1fr]">
-              <div className="space-y-3 border-t border-[#27261f] px-5 py-4 md:border-r md:border-t-0">
+            <div className="grid gap-4 border-t border-[#27261f] px-5 py-5 sm:grid-cols-3">
+              <div className="contents">
                 <div>
                   <p className="text-[11px] text-[#898a87]">Public Peers</p>
                   <p className="mt-1 text-lg font-medium text-white">
@@ -871,7 +878,7 @@ export default async function Home({
                   </p>
                 </div>
 
-                <div className="border-t border-[#222421] pt-3">
+                <div className="sm:border-l sm:border-[#222421] sm:pl-4">
                   <p className="text-[11px] text-[#898a87]">Discovered Nodes</p>
                   <p className="mt-1 text-lg font-medium text-white">
                     {networkOverview === null
@@ -880,7 +887,7 @@ export default async function Home({
                   </p>
                 </div>
 
-                <div className="border-t border-[#222421] pt-3">
+                <div className="sm:border-l sm:border-[#222421] sm:pl-4">
                   <p className="text-[11px] text-[#898a87]">Peer Versions</p>
                   <p className="mt-1 text-lg font-medium text-white">
                     {networkOverview === null
@@ -890,13 +897,6 @@ export default async function Home({
                 </div>
               </div>
 
-              <div className="relative min-h-[215px] overflow-hidden">
-                <NetworkCountryMap
-                  countries={networkOverview?.geolocation.countries ?? []}
-                  locatedAddressCount={networkOverview?.geolocation.locatedAddressCount ?? 0}
-                  variant="compact"
-                />
-              </div>
             </div>
           </article>
 
@@ -927,7 +927,7 @@ export default async function Home({
                 >
                   <div className="absolute inset-[22px] flex flex-col items-center justify-center rounded-full bg-[#0a0b0b]">
                     <span className="max-w-[90px] text-sm font-medium leading-tight text-white">
-                      {formatHashrate(coreStatus?.mining.networkHashPerSecond)}
+                      <CoreLiveMetric network={network} kind="hashrate" initialValue={coreStatus?.mining.networkHashPerSecond ?? null} />
                     </span>
                     <span className="mt-1 text-[10px] text-[#777975]">Est. Hashrate</span>
                   </div>
@@ -936,7 +936,7 @@ export default async function Home({
                 <p className="mt-3 text-[10px] text-[#686a67]">
                   {miningOverview === null
                     ? "Mining data unavailable"
-                    : `Observed block production · ${miningOverview.window.actualBlocks.toLocaleString(
+                    : `1D observed blocks · ${miningOverview.window.actualBlocks.toLocaleString(
                         "en-US"
                       )} blocks`}
                 </p>
@@ -965,11 +965,10 @@ export default async function Home({
                         {group.label}
                       </span>
 
-                      <span className="ml-3 text-xs text-[#d8a33a]">
+                      <span className="ml-3 shrink-0 text-right text-xs text-[#d8a33a]">
                         {new Intl.NumberFormat("en-US", {
                           maximumFractionDigits: 1,
-                        }).format(group.sharePercent)}
-                        %
+                        }).format(group.sharePercent)}% <span className="text-[#777975]">· {group.blocks.toLocaleString("en-US")} blocks</span>
                       </span>
                     </div>
                   ))

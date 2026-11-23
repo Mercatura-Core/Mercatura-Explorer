@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s | Mercatura Explorer",
   },
   description:
-    "Mercatura-native blockchain, mining, network, emission, and post-quantum analytics.",
+    "Mercatura-native blockchain, mining, network, emission, and witness-version analytics.",
 };
 
 export default function RootLayout({

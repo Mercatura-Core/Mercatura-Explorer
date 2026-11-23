@@ -35,6 +35,26 @@ describe.runIf(integrationEnabled)("Mercatura daily transaction statistics API i
 
       expect(defaultBody.activity.range).toBe("30d");
 
+      const breakdown = defaultResponse.json<{
+        outputTypes: Array<{scriptType: string; outputCount: string}>;
+        witnessBreakdown: Array<{
+          scriptType: string;
+          outputCount: string;
+          spentInputCount: string;
+          activeUtxoCount: string;
+        }>;
+      }>();
+      expect(Array.isArray(breakdown.witnessBreakdown)).toBe(true);
+      for (const row of breakdown.witnessBreakdown) {
+        expect(row.scriptType).toMatch(/^witness_v[23]/);
+        expect(BigInt(row.spentInputCount)).toBeGreaterThanOrEqual(BigInt(0));
+        expect(BigInt(row.activeUtxoCount)).toBeGreaterThanOrEqual(BigInt(0));
+        expect(row.outputCount).toBe(
+          breakdown.outputTypes.find((output) => output.scriptType === row.scriptType)?.outputCount
+        );
+      }
+
+
       for (const row of defaultBody.activity.dailyTransactions) {
         expect(row.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(BigInt(row.nonCoinbaseTransactions)).toBeGreaterThanOrEqual(BigInt(0));

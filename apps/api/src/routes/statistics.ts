@@ -6,6 +6,7 @@ import { createDatabase } from "@mercatura/database";
 type ExplorerDatabase = ReturnType<typeof createDatabase>;
 
 const PQ_SCRIPT_TYPE = "witness_v2_mercatura_pq";
+const PQ_V3_SCRIPT_TYPE = "witness_v3_mercatura_pq";
 
 type StatisticsActivityRange = "30d" | "90d" | "180d" | "365d" | "1095d" | "all";
 
@@ -83,6 +84,17 @@ interface PqUtxoRow {
   value_base_units: string;
 }
 
+interface WitnessSpendRow {
+  script_type: string;
+  spent_input_count: string;
+}
+
+interface WitnessUtxoRow {
+  script_type: string;
+  utxo_count: string;
+  value_base_units: string;
+}
+
 interface DailyTransactionsRow {
   day: string;
   non_coinbase_transactions: string;
@@ -123,6 +135,8 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
       outputDistributionResult,
       pqAuthorizationResult,
       pqUtxoResult,
+      witnessSpendsResult,
+      witnessUtxosResult,
       dailyTransactionsResult,
     ] = await Promise.all([
       database
@@ -243,8 +257,8 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
           ON previous_block.hash = previous_tx.block_hash
         WHERE spending_block.active = TRUE
           AND previous_block.active = TRUE
-          AND previous_output.script_type =
-              ${PQ_SCRIPT_TYPE}
+          AND previous_output.script_type IN
+              (${PQ_SCRIPT_TYPE}, ${PQ_V3_SCRIPT_TYPE})
       `.execute(database),
 
       sql<PqUtxoRow>`
@@ -255,7 +269,32 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
             0
           )::text AS value_base_units
         FROM active_utxos
-        WHERE script_type = ${PQ_SCRIPT_TYPE}
+        WHERE script_type IN (${PQ_SCRIPT_TYPE}, ${PQ_V3_SCRIPT_TYPE})
+      `.execute(database),
+
+      sql<WitnessSpendRow>`
+        SELECT previous_output.script_type,
+               COUNT(*)::text AS spent_input_count
+        FROM transaction_inputs AS input
+        JOIN transactions AS spending_tx ON spending_tx.id = input.transaction_id
+        JOIN blocks AS spending_block ON spending_block.hash = spending_tx.block_hash
+        JOIN transaction_outputs AS previous_output
+          ON previous_output.transaction_id = input.resolved_prev_transaction_id
+         AND previous_output.vout = input.prev_vout
+        JOIN transactions AS previous_tx ON previous_tx.id = previous_output.transaction_id
+        JOIN blocks AS previous_block ON previous_block.hash = previous_tx.block_hash
+        WHERE spending_block.active = TRUE AND previous_block.active = TRUE
+          AND (previous_output.script_type LIKE 'witness_v2%'
+               OR previous_output.script_type LIKE 'witness_v3%')
+        GROUP BY previous_output.script_type
+      `.execute(database),
+
+      sql<WitnessUtxoRow>`
+        SELECT script_type, COUNT(*)::text AS utxo_count,
+               COALESCE(SUM(value_base_units), 0)::text AS value_base_units
+        FROM active_utxos
+        WHERE script_type LIKE 'witness_v2%' OR script_type LIKE 'witness_v3%'
+        GROUP BY script_type
       `.execute(database),
 
       sql<DailyTransactionsRow>`
@@ -380,9 +419,11 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
 
     const pqUtxos = firstRow(pqUtxoResult.rows, "PQ UTXO statistics");
 
-    const pqOutputs = outputDistributionResult.rows.find(
-      (row) => row.script_type === PQ_SCRIPT_TYPE
+    const pqOutputs = outputDistributionResult.rows.filter(
+      (row) => row.script_type === PQ_SCRIPT_TYPE || row.script_type === PQ_V3_SCRIPT_TYPE
     );
+    const sumPq = (field: "output_count" | "addressed_output_count" | "total_value_base_units") =>
+      pqOutputs.reduce((total, row) => total + BigInt(row[field]), 0n).toString();
 
     return {
       chain: {
@@ -423,9 +464,9 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
 
       pq: {
         scriptType: PQ_SCRIPT_TYPE,
-        outputCount: pqOutputs?.output_count ?? "0",
-        addressedOutputCount: pqOutputs?.addressed_output_count ?? "0",
-        outputValueBaseUnits: pqOutputs?.total_value_base_units ?? "0",
+        outputCount: sumPq("output_count"),
+        addressedOutputCount: sumPq("addressed_output_count"),
+        outputValueBaseUnits: sumPq("total_value_base_units"),
         authorizationInputCount: pqAuthorization.input_count,
         spendingTransactionCount: pqAuthorization.transaction_count,
         activeUtxoCount: pqUtxos.utxo_count,
@@ -440,6 +481,21 @@ export function registerStatisticsRoutes(app: FastifyInstance, database: Explore
           nonCoinbaseTransactions: row.non_coinbase_transactions,
         })),
       },
+
+      witnessBreakdown: outputDistributionResult.rows
+        .filter((row) => row.script_type.startsWith("witness_v2") || row.script_type.startsWith("witness_v3"))
+        .map((row) => {
+          const spends = witnessSpendsResult.rows.find((item) => item.script_type === row.script_type);
+          const utxosByType = witnessUtxosResult.rows.find((item) => item.script_type === row.script_type);
+          return {
+            scriptType: row.script_type,
+            outputCount: row.output_count,
+            outputValueBaseUnits: row.total_value_base_units,
+            spentInputCount: spends?.spent_input_count ?? "0",
+            activeUtxoCount: utxosByType?.utxo_count ?? "0",
+            activeUtxoValueBaseUnits: utxosByType?.value_base_units ?? "0",
+          };
+        }),
 
       outputTypes: outputDistributionResult.rows.map((row) => ({
         scriptType: row.script_type,

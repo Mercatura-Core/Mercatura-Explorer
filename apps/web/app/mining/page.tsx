@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { fetchExplorerApi } from "../../lib/explorer-server-api";
 import { parseExplorerNetwork } from "../../lib/explorer-network";
-import { MINING_WINDOWS, parseMiningWindow, type MiningWindow } from "../../lib/mining-window";
+import { MINING_WINDOW_OPTIONS, parseMiningWindow, type MiningWindow } from "../../lib/mining-window";
+import { AxisLineChart } from "../../components/axis-line-chart";
+import { RecentBlockProductionTable } from "../../components/recent-block-production-table";
 
 type MiningResponse = {
   chain: {
@@ -10,7 +12,7 @@ type MiningResponse = {
     indexedTip: string | null;
   };
   window: {
-    requestedBlocks: number;
+    requestedBlocks: number | null;
     actualBlocks: number;
   };
   summary: {
@@ -18,6 +20,7 @@ type MiningResponse = {
     minimumDifficulty: number | null;
     maximumDifficulty: number | null;
     averageBlockIntervalSeconds: number | null;
+    averageHashrateHps: number | null;
     totalFeesBaseUnits: string;
     totalSubsidyBaseUnits: string;
     totalTransactions: number;
@@ -31,6 +34,25 @@ type MiningResponse = {
     payoutAddress: string | null;
     blocks: number;
     sharePercent: number;
+  }>;
+  recentPagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+  };
+  recentBlocks?: Array<{
+    height: number;
+    hash: string;
+    time: string;
+    bits: string;
+    target: string;
+    difficulty: number;
+    transactionCount: number;
+    size: number;
+    weight: number;
+    subsidyBaseUnits: string;
+    feesBaseUnits: string;
   }>;
   history: Array<{
     height: number;
@@ -136,56 +158,6 @@ function formatPercent(value: number): string {
   }).format(value)}%`;
 }
 
-function parseUnixSeconds(value: string): number | null {
-  if (!/^\d+$/.test(value)) {
-    return null;
-  }
-
-  const seconds = Number(value);
-
-  if (!Number.isSafeInteger(seconds) || seconds < 0) {
-    return null;
-  }
-
-  return seconds;
-}
-
-function formatRelativeTime(value: string): string {
-  const timestamp = parseUnixSeconds(value);
-
-  if (timestamp === null) {
-    return "Unavailable";
-  }
-
-  const elapsed = Math.max(0, Math.floor((Date.now() - timestamp * 1000) / 1000));
-
-  if (elapsed < 60) {
-    return `${elapsed}s ago`;
-  }
-
-  const minutes = Math.floor(elapsed / 60);
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function shortHash(value: string): string {
-  if (value.length <= 28) {
-    return value;
-  }
-
-  return `${value.slice(0, 13)}…${value.slice(-11)}`;
-}
-
 function shortAddress(value: string): string {
   if (value.length <= 28) {
     return value;
@@ -219,58 +191,16 @@ function sampleHistory(
 }
 
 function DifficultyChart({ history }: { history: MiningResponse["history"] }) {
-  const sampled = sampleHistory(history);
-
-  if (sampled.length < 2) {
-    return (
-      <div className="flex h-56 items-center justify-center text-xs text-[#777975]">
-        Not enough indexed blocks for a difficulty history chart.
-      </div>
-    );
-  }
-
-  const difficulties = sampled.map((block) => block.difficulty);
-  const minimum = Math.min(...difficulties);
-  const maximum = Math.max(...difficulties);
-  const range = maximum - minimum || 1;
-
-  const points = sampled
-    .map((block, index) => {
-      const x = (index / (sampled.length - 1)) * 1000;
-      const normalized = (block.difficulty - minimum) / range;
-      const y = 210 - normalized * 180;
-
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
-
   return (
-    <div>
-      <svg
-        viewBox="0 0 1000 240"
-        role="img"
-        aria-label="Difficulty history"
-        className="h-56 w-full"
-        preserveAspectRatio="none"
-      >
-        <line x1="0" y1="210" x2="1000" y2="210" stroke="#33342f" strokeWidth="2" />
-        <line x1="0" y1="120" x2="1000" y2="120" stroke="#242620" strokeWidth="1" />
-        <line x1="0" y1="30" x2="1000" y2="30" stroke="#242620" strokeWidth="1" />
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#e3ae43"
-          strokeWidth="3"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-
-      <div className="flex flex-wrap justify-between gap-3 border-t border-[#24251f] pt-3 text-[10px] text-[#747672]">
-        <span>Min {formatDifficulty(minimum)}</span>
-        <span>{sampled.length.toLocaleString("en-US")} plotted samples</span>
-        <span>Max {formatDifficulty(maximum)}</span>
-      </div>
-    </div>
+    <AxisLineChart
+      points={sampleHistory(history).map((block) => ({
+        x: block.height,
+        y: block.difficulty,
+        title: `Block ${block.height.toLocaleString("en-US")}: difficulty ${formatDifficulty(block.difficulty)}`,
+      }))}
+      yLabel="Difficulty (relative)"
+      formatY={formatDifficulty}
+    />
   );
 }
 
@@ -295,10 +225,24 @@ export default async function MiningPage({
   ]);
 
   const payoutGroups = mining?.payoutGroups ?? [];
+  const sortedAddressGroups = payoutGroups
+    .filter((group) => group.payoutAddress !== null && group.attribution === "pseudonymous")
+    .sort((left, right) => right.blocks - left.blocks || left.payoutAddress!.localeCompare(right.payoutAddress!));
+  const topPayoutGroups = sortedAddressGroups.slice(0, 10);
+  const topBlocks = topPayoutGroups.reduce((sum, group) => sum + group.blocks, 0);
+  const totalAttributedBlocks = payoutGroups.reduce((sum, group) => sum + group.blocks, 0);
+  const otherBlocks = Math.max(0, totalAttributedBlocks - topBlocks);
+  const totalBlocks = mining?.window.actualBlocks ?? totalAttributedBlocks;
+  const visiblePayoutGroups = otherBlocks > 0
+    ? [...topPayoutGroups, {
+        attribution: "unidentified" as const,
+        payoutAddress: null,
+        blocks: otherBlocks,
+        sharePercent: totalBlocks > 0 ? otherBlocks * 100 / totalBlocks : 0,
+      }]
+    : topPayoutGroups;
   const largestShare =
-    payoutGroups.length === 0 ? 0 : Math.max(...payoutGroups.map((group) => group.sharePercent));
-
-  const historyRows = mining?.history.slice(0, 30) ?? [];
+    visiblePayoutGroups.length === 0 ? 0 : Math.max(...visiblePayoutGroups.map((group) => group.sharePercent));
 
   return (
     <main className="mx-auto max-w-[1540px] px-5 py-8 sm:px-8">
@@ -326,7 +270,7 @@ export default async function MiningPage({
           </h1>
 
           <p className="mt-3 max-w-4xl text-sm leading-6 text-[#969894]">
-            MercaHash proof of work with DGWv3 difficulty adjustment. Mining attribution is based
+            MercaHash v2 proof of work with DGWv3 difficulty adjustment. Mining attribution is based
             only on observable coinbase payout data and does not infer real-world miner identity.
           </p>
         </div>
@@ -334,7 +278,7 @@ export default async function MiningPage({
         <div className="grid gap-px bg-[#25251f] sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-[#0b0c0b] px-5 py-4">
             <p className="text-[10px] uppercase tracking-[0.08em] text-[#777975]">Proof of Work</p>
-            <p className="mt-2 text-sm font-medium text-[#e3ae43]">MercaHash</p>
+            <p className="mt-2 text-sm font-medium text-[#e3ae43]">MercaHash v2</p>
             <p className="mt-1 text-xs text-[#8c8d89]">Memory-hard Mercatura PoW</p>
           </div>
 
@@ -364,31 +308,32 @@ export default async function MiningPage({
         <div>
           <h2 className="text-sm font-semibold text-[#efefec]">Observation Window</h2>
           <p className="mt-1 text-xs text-[#777975]">
-            Distribution and historical statistics use the selected active-chain window.
+            Each selection spans elapsed time counted back from the indexed tip (4 hours through 1 year, or all indexed blocks).
           </p>
         </div>
 
-        <div className="flex overflow-hidden rounded-lg border border-[#4c3a1b] bg-[#0b0c0b]">
-          {MINING_WINDOWS.map((candidate) => (
+        <div className="flex flex-wrap overflow-hidden rounded-lg border border-[#4c3a1b] bg-[#0b0c0b]">
+          {MINING_WINDOW_OPTIONS.map((option) => (
             <Link
-              key={candidate}
-              href={miningHref(network, candidate)}
+              key={option.value}
+              href={miningHref(network, option.value)}
               className={[
                 "px-4 py-2 text-xs font-medium transition",
-                window === candidate
+                window === option.value
                   ? "bg-[#dca63c] text-[#161006]"
                   : "text-[#aaa] hover:bg-[#161710] hover:text-white",
               ].join(" ")}
             >
-              {candidate.toLocaleString("en-US")}
+              {option.label}
             </Link>
           ))}
         </div>
       </section>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {[
-          ["Network Hashrate", formatHashrate(coreStatus?.mining.networkHashPerSecond)],
+          ["Current Hashrate Estimate", formatHashrate(coreStatus?.mining.networkHashPerSecond)],
+          ["Window Avg. Hashrate", formatHashrate(mining?.summary.averageHashrateHps)],
           ["Current Difficulty", formatDifficulty(coreStatus?.mining.difficulty)],
           ["Window Avg. Difficulty", formatDifficulty(mining?.summary.averageDifficulty)],
           [
@@ -401,7 +346,9 @@ export default async function MiningPage({
             "Observed Blocks",
             mining === null
               ? "Unavailable"
-              : `${mining.window.actualBlocks.toLocaleString("en-US")} / ${mining.window.requestedBlocks.toLocaleString("en-US")}`,
+              : mining.window.requestedBlocks === null
+                ? mining.window.actualBlocks.toLocaleString("en-US")
+                : `${mining.window.actualBlocks.toLocaleString("en-US")} / ${mining.window.requestedBlocks.toLocaleString("en-US")}`,
           ],
           [
             "Window Transactions",
@@ -419,13 +366,19 @@ export default async function MiningPage({
         ))}
       </section>
 
+      <p className="mt-2 text-[11px] text-[#777975]">
+        Hashrates are estimates: the latest Core estimate is not a directly measured instantaneous rate; the window average derives from indexed chainwork over elapsed block time. Date ranges are anchored to the indexed tip.
+      </p>
+
       {mining === null ? (
         <section className="gold-panel mt-4 rounded-[10px] px-6 py-12 text-center">
           <h2 className="text-lg font-semibold text-white">Mining analytics are unavailable</h2>
 
           <p className="mt-3 text-sm text-[#8f918d]">
-            The selected {network === "mainnet" ? "Mainnet" : "Testnet"} explorer backend is not
-            currently available.
+            The selected API did not return Mining data for {window.toUpperCase()}. The deployed
+            testnet API may still accept only block-count windows (144, 1000, 4032). To use
+            4H–ALL, connect this frontend to the updated API and a populated, current-chain index.
+            We will not relabel a short block sample as a month or year.
           </p>
         </section>
       ) : (
@@ -446,8 +399,9 @@ export default async function MiningPage({
                 </div>
               ) : (
                 <div className="divide-y divide-[#24251f]">
-                  {payoutGroups.map((group, index) => {
-                    const label =
+                  {visiblePayoutGroups.map((group, index) => {
+                    const isOther = otherBlocks > 0 && index === visiblePayoutGroups.length - 1;
+                    const label = isOther ? "Other" :
                       group.attribution === "pseudonymous" && group.payoutAddress !== null
                         ? shortAddress(group.payoutAddress)
                         : "Unidentified miner";
@@ -474,7 +428,7 @@ export default async function MiningPage({
                             </p>
 
                             <p className="mt-1 text-[10px] uppercase tracking-[0.06em] text-[#777975]">
-                              {group.attribution === "pseudonymous"
+                              {isOther ? "Remaining payout groups" : group.attribution === "pseudonymous"
                                 ? "Pseudonymous payout grouping"
                                 : "No unique payout address observed"}
                             </p>
@@ -505,9 +459,9 @@ export default async function MiningPage({
               )}
 
               <div className="border-t border-[#292820] px-5 py-4 text-xs leading-5 text-[#777975]">
-                Pseudonymous groups are based on an observable unique coinbase payout address. They
-                are not asserted to be pools, companies, people, or persistent real-world
-                identities.
+                Top 10 identified payout addresses by observed block count; Other combines remaining
+                addresses and blocks with unidentified payout addresses. These are observed block-production
+                shares, not measured individual miner hashrates. Payout addresses do not establish miner identities.
               </div>
             </article>
 
@@ -562,81 +516,19 @@ export default async function MiningPage({
             </div>
           </section>
 
-          <section className="gold-panel mt-4 overflow-hidden rounded-[10px]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#292820] px-5 py-4">
-              <div>
-                <h2 className="text-[15px] font-semibold text-[#efefec]">
-                  Recent Block Production
-                </h2>
-                <p className="mt-1 text-xs text-[#777975]">
-                  Latest 30 blocks from the selected observation window
-                </p>
-              </div>
-
-              <span className="text-xs text-[#858783]">
-                Indexed tip{" "}
-                {mining.chain.indexedHeight === null
-                  ? "Unavailable"
-                  : `#${mining.chain.indexedHeight.toLocaleString("en-US")}`}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left">
-                <thead className="bg-[#101210] text-[10px] uppercase tracking-[0.08em] text-[#777975]">
-                  <tr>
-                    <th className="px-5 py-3 font-medium">Block</th>
-                    <th className="px-5 py-3 font-medium">Time</th>
-                    <th className="px-5 py-3 font-medium">Difficulty</th>
-                    <th className="px-5 py-3 font-medium">TXs</th>
-                    <th className="px-5 py-3 font-medium">Size</th>
-                    <th className="px-5 py-3 font-medium">Subsidy</th>
-                    <th className="px-5 py-3 font-medium">Fees</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {historyRows.map((block) => (
-                    <tr key={block.hash} className="border-t border-[#24251f]">
-                      <td className="px-5 py-3">
-                        <Link
-                          href={`/block/${block.hash}?network=${network}`}
-                          title={block.hash}
-                          className="font-mono text-xs text-[#d8a33a] hover:text-[#edbe5b]"
-                        >
-                          #{block.height.toLocaleString("en-US")} · {shortHash(block.hash)}
-                        </Link>
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#8f918d]">
-                        {formatRelativeTime(block.time)}
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#c5c6c1]">
-                        {formatDifficulty(block.difficulty)}
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#c5c6c1]">
-                        {block.transactionCount.toLocaleString("en-US")}
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#9b9d98]">
-                        {formatBytes(block.size)}
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#e3ae43]">
-                        {formatMca(block.subsidyBaseUnits)}
-                      </td>
-
-                      <td className="px-5 py-3 text-xs text-[#c5c6c1]">
-                        {formatMca(block.feesBaseUnits)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <RecentBlockProductionTable
+            key={`${network}:${window}`}
+            network={network}
+            window={window}
+            initialRows={mining.recentBlocks ?? []}
+            initialPagination={mining.recentPagination ?? {
+              currentPage: 1,
+              totalPages: 1,
+              totalItems: mining.recentBlocks?.length ?? 0,
+              pageSize: 20,
+            }}
+            indexedHeight={mining.chain.indexedHeight}
+          />
         </>
       )}
     </main>

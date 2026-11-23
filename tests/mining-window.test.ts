@@ -7,6 +7,10 @@ import {
 } from "../apps/web/lib/mining-window.js";
 
 describe("Mercatura mining window selection", () => {
+  it("presents the nine requested observation periods", () => {
+    expect(MINING_WINDOWS).toEqual(["4h", "1d", "3d", "7d", "30d", "90d", "180d", "365d", "all"]);
+  });
+
   it("accepts every supported mining window", () => {
     for (const window of MINING_WINDOWS) {
       expect(parseMiningWindow(window.toString())).toBe(window);
@@ -20,6 +24,6 @@ describe("Mercatura mining window selection", () => {
   });
 
   it("uses the first value for repeated query parameters", () => {
-    expect(parseMiningWindow(["1000", "4032"])).toBe(1000);
+    expect(parseMiningWindow(["30d", "all"])).toBe("30d");
   });
 });

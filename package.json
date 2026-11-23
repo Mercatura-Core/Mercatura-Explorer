@@ -15,7 +15,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && npm run typecheck -w @mercatura/web",
+    "typecheck": "tsc --noEmit && npm run typecheck -w @mercatura/web && npm run typecheck -w @mercatura/site",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

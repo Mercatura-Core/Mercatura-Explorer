@@ -116,8 +116,7 @@ export function HeaderActions() {
             <div>
               <div className="font-semibold text-[#c8c8c4]">Post-quantum data</div>
               <p className="mt-1">
-                PQ pages and labels expose Mercatura-native post-quantum ownership and authorization
-                data as first-class Explorer information.
+                Witness v2/v3 output and spending statistics are available on the Statistics page.
               </p>
             </div>
           </div>

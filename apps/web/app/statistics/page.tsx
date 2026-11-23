@@ -88,6 +88,14 @@ interface StatisticsResponse {
   };
 
   outputTypes: OutputTypeRow[];
+  witnessBreakdown?: Array<{
+    scriptType: string;
+    outputCount: string;
+    outputValueBaseUnits: string;
+    spentInputCount: string;
+    activeUtxoCount: string;
+    activeUtxoValueBaseUnits: string;
+  }>;
 }
 
 function singleParameter(value: string | string[] | undefined): string | undefined {
@@ -290,6 +298,12 @@ function formatScriptType(scriptType: string): string {
   if (scriptType === "witness_v2_mercatura_pq") {
     return "Mercatura PQ · Witness v2";
   }
+  if (scriptType === "witness_v3_mercatura_pq") {
+    return "Mercatura PQ · Witness v3";
+  }
+  if (scriptType === "witness_v3_unknown" || scriptType === "witness_v3") {
+    return "Witness v3 · Unclassified";
+  }
 
   return scriptType
     .split("_")
@@ -361,10 +375,15 @@ export default async function StatisticsPage({
 
   const outputTypes = statistics?.outputTypes ?? [];
 
-  const totalOutputCount = outputTypes.reduce(
-    (total, row) => total + (parseBigIntValue(row.outputCount) ?? BigInt(0)),
-    BigInt(0)
+  const witnessOutputTypes = outputTypes.filter((row) =>
+    row.scriptType === "witness_v2_mercatura_pq" || row.scriptType.startsWith("witness_v3")
   );
+  const witnessOutputCount = witnessOutputTypes.reduce(
+    (total, row) => total + (parseBigIntValue(row.outputCount) ?? BigInt(0)), BigInt(0)
+  );
+  const unclassifiedV3Count = outputTypes.filter((row) =>
+    row.scriptType.startsWith("witness_v3") && row.scriptType !== "witness_v3_mercatura_pq"
+  ).reduce((total, row) => total + (parseBigIntValue(row.outputCount) ?? BigInt(0)), BigInt(0));
 
   const indexedHeight = statistics?.chain.indexedHeight ?? null;
   const indexedTip = statistics?.chain.indexedTip ?? null;
@@ -379,9 +398,24 @@ export default async function StatisticsPage({
     statistics?.addresses.count
   );
 
-  const pqOutputShare = formatPercentage(statistics?.pq.outputCount, totalOutputCount);
-
-  const pqUtxoShare = formatPercentage(statistics?.pq.activeUtxoCount, statistics?.utxos.count);
+  const witnessSummary = (["v2", "v3"] as const).map((version) => {
+    const isVersion = (scriptType: string) => scriptType.startsWith(`witness_${version}`);
+    const rows = witnessOutputTypes.filter((row) => isVersion(row.scriptType));
+    const extended = statistics?.witnessBreakdown?.filter((row) => isVersion(row.scriptType));
+    const total = (field: "outputCount" | "totalValueBaseUnits") =>
+      rows.reduce((sum, row) => sum + (parseBigIntValue(row[field]) ?? BigInt(0)), BigInt(0)).toString();
+    const extendedTotal = (field: "spentInputCount" | "activeUtxoCount" | "activeUtxoValueBaseUnits") =>
+      extended === undefined ? null : extended.reduce((sum, row) => sum + (parseBigIntValue(row[field]) ?? BigInt(0)), BigInt(0)).toString();
+    return {
+      version,
+      outputCount: total("outputCount"),
+      outputValueBaseUnits: total("totalValueBaseUnits"),
+      outputShare: formatPercentage(total("outputCount"), witnessOutputCount),
+      spentInputCount: extendedTotal("spentInputCount"),
+      activeUtxoCount: extendedTotal("activeUtxoCount"),
+      activeUtxoValueBaseUnits: extendedTotal("activeUtxoValueBaseUnits"),
+    };
+  });
 
   return (
     <main className="min-h-screen pb-16">
@@ -671,56 +705,38 @@ export default async function StatisticsPage({
           <article className="gold-panel-soft rounded-[10px]">
             <div className="border-b border-[#29271f] px-5 py-4">
               <div className="text-[10px] font-semibold uppercase tracking-[0.23em] text-[#99732b]">
-                Post-quantum
+                Witness output formats
               </div>
-
-              <h2 className="mt-1 text-lg font-semibold text-[#efefec]">PQ Footprint</h2>
+              <h2 className="mt-1 text-lg font-semibold text-[#efefec]">Witness v2 / v3 Footprint</h2>
+              <p className="mt-2 text-xs leading-5 text-[#777975]">
+                Compare versioned outputs and their observed spends. Unlike universal PQ ownership percentages,
+                this shows how the ledger actually uses each witness version. Nulldata is excluded.
+                An unclassified v3 output is not automatically proven PQ-authorized.
+              </p>
             </div>
-
-            <div className="px-5 py-1">
-              <StatRow label="PQ outputs" value={formatInteger(statistics?.pq.outputCount)} />
-
-              <StatRow
-                label="PQ output share"
-                value={pqOutputShare}
-                note="Share of all active-chain indexed outputs"
-              />
-
-              <StatRow
-                label="Addressed PQ outputs"
-                value={formatInteger(statistics?.pq.addressedOutputCount)}
-              />
-
-              <StatRow
-                label="PQ authorization inputs"
-                value={formatInteger(statistics?.pq.authorizationInputCount)}
-              />
-
-              <StatRow
-                label="PQ spending transactions"
-                value={formatInteger(statistics?.pq.spendingTransactionCount)}
-              />
-
-              <StatRow
-                label="Active PQ UTXOs"
-                value={formatInteger(statistics?.pq.activeUtxoCount)}
-              />
-
-              <StatRow label="PQ UTXO share" value={pqUtxoShare} />
-
-              <StatRow
-                label="Active PQ UTXO value"
-                value={formatMca(statistics?.pq.activeUtxoValueBaseUnits)}
-              />
+            <div className="grid gap-px bg-[#25251f] md:grid-cols-2">
+              {witnessSummary.map((row) => (
+                <div key={row.version} className="bg-[#0c0e0c] px-5 py-3">
+                  <h3 className="border-b border-[#29271f] py-3 text-base font-semibold text-[#e3ae43]">
+                    Witness {row.version} <span className="ml-2 text-xs font-normal text-[#959892]">{row.outputShare} of v2/v3 outputs</span>
+                  </h3>
+                  <StatRow label="Outputs" value={formatInteger(row.outputCount)} />
+                  <StatRow label="Output value" value={formatMca(row.outputValueBaseUnits)} />
+                  {statistics?.witnessBreakdown !== undefined ? (
+                    <>
+                      <StatRow label="Spent inputs" value={formatInteger(row.spentInputCount)} note="Identified by spent output script type" />
+                      <StatRow label="Active UTXOs" value={formatInteger(row.activeUtxoCount)} />
+                      <StatRow label="Active UTXO value" value={formatMca(row.activeUtxoValueBaseUnits)} />
+                    </>
+                  ) : null}
+                </div>
+              ))}
             </div>
-
-            <div className="border-t border-[#29271f] px-5 py-4">
-              <Link
-                href={networkHref(network, "/pq")}
-                className="text-xs font-medium text-[#d7a33c] transition hover:text-[#f0bf58]"
-              >
-                View PQ analytics →
-              </Link>
+            <div className="border-t border-[#29271f] px-5 py-4 text-[11px] leading-5 text-[#858681]">
+              {statistics?.witnessBreakdown === undefined
+                ? "This connected API provides output counts and values, but not v2/v3 spend and UTXO breakdowns. Those metrics are hidden until an updated backend serves them; zero is not inferred from missing data."
+                : "Counts describe active-chain script versions; a transaction can contain outputs of more than one witness version."}
+              {unclassifiedV3Count > BigInt(0) ? ` ${formatInteger(unclassifiedV3Count)} v3 outputs currently have unclassified authorization semantics.` : ""}
             </div>
           </article>
         </section>
@@ -736,17 +752,17 @@ export default async function StatisticsPage({
                 <h2 className="text-lg font-semibold text-[#efefec]">Output Types</h2>
 
                 <p className="mt-1 text-xs leading-5 text-[#777975]">
-                  All outputs belonging to blocks currently marked active by the Explorer index.
+                  Witness v2 and v3 outputs from active-chain blocks. Nulldata and other non-witness output types are omitted from this comparison.
                 </p>
               </div>
 
               <div className="text-xs text-[#7f807c]">
-                Total outputs: {formatInteger(totalOutputCount)}
+                Witness outputs: {formatInteger(witnessOutputCount)}
               </div>
             </div>
           </div>
 
-          {outputTypes.length === 0 ? (
+          {witnessOutputTypes.length === 0 ? (
             <div className="px-5 py-12 text-center text-sm text-[#777975]">
               Output distribution is unavailable.
             </div>
@@ -764,12 +780,12 @@ export default async function StatisticsPage({
                 </thead>
 
                 <tbody>
-                  {outputTypes.map((row) => {
-                    const share = formatPercentage(row.outputCount, totalOutputCount);
+                  {witnessOutputTypes.map((row) => {
+                    const share = formatPercentage(row.outputCount, witnessOutputCount);
 
-                    const width = percentageNumber(row.outputCount, totalOutputCount);
+                    const width = percentageNumber(row.outputCount, witnessOutputCount);
 
-                    const isPq = row.scriptType === "witness_v2_mercatura_pq";
+                    const isPq = row.scriptType === "witness_v2_mercatura_pq" || row.scriptType === "witness_v3_mercatura_pq";
 
                     return (
                       <tr key={row.scriptType} className="border-b border-[#22221d] last:border-0">

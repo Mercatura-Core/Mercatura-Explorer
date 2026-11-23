@@ -41,6 +41,15 @@ function parseIncludeSpendable(value: string | undefined): boolean {
   throw new Error("includeSpendable must be true or false");
 }
 
+function parsePage(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const page = Number(value);
+  if (!Number.isSafeInteger(page) || page < 1 || page > 1_000_000) {
+    throw new Error("page must be an integer from 1 to 1000000");
+  }
+  return page;
+}
+
 function parseBeforeHeight(value: string | undefined): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -60,16 +69,22 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
     Querystring: {
       limit?: string;
       beforeHeight?: string;
+      page?: string;
       includeSpendable?: string;
     };
   }>("/api/v1/emission", async (request, reply) => {
     let limit: number;
     let beforeHeight: number | undefined;
+    let page: number | undefined;
     let includeSpendable: boolean;
 
     try {
       limit = parseLimit(request.query.limit);
       beforeHeight = parseBeforeHeight(request.query.beforeHeight);
+      page = parsePage(request.query.page);
+      if (page !== undefined && beforeHeight !== undefined) {
+        throw new Error("page and beforeHeight cannot be combined");
+      }
       includeSpendable = parseIncludeSpendable(request.query.includeSpendable);
     } catch (error) {
       return reply.code(400).send({
@@ -197,6 +212,13 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
     }
 
     const beforeFilter = beforeHeight === undefined ? sql`` : sql`WHERE height < ${beforeHeight}`;
+    const offset = page === undefined ? 0 : (page - 1) * limit;
+    const activeCountRow = await database
+      .selectFrom("blocks")
+      .select(sql<string>`COUNT(*)::text`.as("total"))
+      .where("active", "=", true)
+      .executeTakeFirstOrThrow();
+    const totalItems = Number(activeCountRow.total);
 
     const history = await sql<EmissionHistoryRow>`
       WITH coinbase_totals AS (
@@ -254,6 +276,7 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
       ${beforeFilter}
       ORDER BY height DESC
       LIMIT ${limit}
+      OFFSET ${offset}
     `.execute(database);
 
     return {
@@ -286,6 +309,9 @@ export function registerEmissionRoutes(app: FastifyInstance, database: ExplorerD
 
       pagination: {
         limit,
+        page: page ?? 1,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / limit)),
         nextBeforeHeight:
           history.rows.length < limit ? null : (history.rows.at(-1)?.height ?? null),
       },

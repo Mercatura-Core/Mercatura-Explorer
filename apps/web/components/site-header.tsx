@@ -19,7 +19,6 @@ const navigation = [
   { label: "Mining", href: "/mining" },
   { label: "Emission", href: "/emission" },
   { label: "Statistics", href: "/statistics" },
-  { label: "PQ", href: "/pq" },
 ];
 
 function networkHref(network: ExplorerNetwork, href = "/"): string {
