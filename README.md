@@ -37,11 +37,26 @@ The Explorer currently provides:
 - miner payout distribution
 - difficulty and block-production history
 - adaptive-emission information
-- post-quantum network information
-- node and geographic network analytics
+- witness v2/v3 post-quantum transaction and UTXO statistics
+- public connected-peer and discovered-node listings
 - separate mainnet and testnet views
 
 Mainnet and testnet data are kept isolated so blocks, transactions, addresses, statistics, mining data, and other indexed state are never mixed.
+
+## Changes — November 22, 2026
+
+The following explorer refinements were completed on **November 22, 2026**, and recorded in commit `740ddf5`:
+
+- **Explorer overview:** Aligned the Mining Distribution chart with the Mining page: up to ten leading identified payout addresses, plus **Other** only when there are additional or unidentified payouts.
+- **Mining:** Added `4H`, `1D`, `3D`, `1W`, `1M`, `3M`, `6M`, `1Y`, and `ALL` history windows; improved mining analytics; and added 20-block pagination to Recent Block Production.
+- **Emission:** Added the same history windows and 20-row pagination to Block-by-Block Issuance.
+- **Network:** Added numbered, 20-entry pagination with Previous/Next controls to Public Connected Peers and Public Discovered Nodes.
+- **Live metrics:** Added periodic refreshes of Mercatura Core's current difficulty and estimated network hashrate on the overview page (approximately every 30 seconds).
+- **Post-quantum statistics:** Consolidated witness v2/v3 comparisons into Statistics and removed the separate PQ page.
+- **Maintenance:** Removed obsolete frontend assets, updated dependencies, and refreshed developer/API documentation.
+- **Validation:** TypeScript, ESLint, and the production web build passed; the dependency audit reported zero vulnerabilities at the time of testing. The available test run passed 23 tests; 28 integration tests were skipped and the regtest-dependent RPC test was excluded because its test node was unavailable.
+
+These changes were validated locally; a Git commit does not by itself deploy them to the public explorer.
 
 ## Architecture
 
